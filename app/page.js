@@ -78,24 +78,20 @@ export default function Home() {
   const { data: heartRateData, loading: hrLoading, error: hrError } = useCSVData('/data/bpm_test.csv');
   const { data: toneData, loading: toneLoading, error: toneError } = useCSVData('/data/iterus_test.csv');
 
-  // Создаем единую временную переменную для синхронизации
   const [elapsedTime, setElapsedTime] = useState(0);
   const startTimeRef = useRef(null);
 
   useEffect(() => {
     if (hrLoading || toneLoading) return;
 
-    // Если данные загружены, начинаем отсчет времени
     if (startTimeRef.current === null) {
       startTimeRef.current = performance.now();
     }
 
     const interval = setInterval(() => {
-      // Обновляем прошедшее время
       const timeElapsed = (performance.now() - startTimeRef.current) / 1000;
       setElapsedTime(timeElapsed);
 
-      // Останавливаем таймер, когда данные закончатся
       const maxTime = Math.max(
           heartRateData[heartRateData.length - 1]?.time_sec || 0,
           toneData[toneData.length - 1]?.time_sec || 0
@@ -103,12 +99,11 @@ export default function Home() {
       if (timeElapsed >= maxTime) {
         clearInterval(interval);
       }
-    }, 100); // Интервал для обновления
+    }, 100);
 
     return () => clearInterval(interval);
   }, [heartRateData, toneData, hrLoading, toneLoading]);
 
-  // Вычисляем индекс данных на основе прошедшего времени
   const heartRateIndex = heartRateData.findIndex(d => d.time_sec >= elapsedTime);
   const toneIndex = toneData.findIndex(d => d.time_sec >= elapsedTime);
 
