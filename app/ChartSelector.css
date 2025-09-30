@@ -1,0 +1,92 @@
+.chart-selector-title {
+    margin-top: 0;
+}
+
+.chart-selector-data-info {
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.chart-selector-data-info p {
+    margin: 5px 0;
+}
+
+.chart-selector-data-info .stat-note {
+    font-style: italic;
+    color: #666;
+    margin-top: 8px;
+}
+
+
+/* Оформление списка групп (ДАТ) */
+.chart-selector-groups-list {
+    list-style: none; /* Убираем стандартные маркеры списка */
+    padding: 0;
+    margin: 0;
+}
+
+.chart-selector-group-item {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+}
+
+.chart-selector-group-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.group-date-title {
+    margin: 0 0 10px 0;
+    font-size: 1.1em;
+    color: #333;
+}
+
+/* Стили для кнопок-переключателей внутри группы */
+.chart-selector-buttons-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-left: 20px;
+}
+
+.chart-selector-button {
+    padding: 8px 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: white;
+    font-weight: normal;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    text-align: left;
+}
+
+.chart-selector-button.active {
+    border: 1px solid lime;
+    background-color: rgba(50, 205, 50, 0.2);
+    font-weight: bold;
+}
+
+.selected-icon {
+    margin-left: 8px;
+}
+
+.record-sublist {
+    margin-left: 30px;
+}
+
+.record-list-item.active {
+    border: 1px solid lime;
+    background-color: rgba(50, 205, 50, 0.2);
+    font-weight: bold;
+}
+
+/* Изменение кружочка для активного элемента */
+.record-list-item.active::before {
+    background-color: lime; /* Заливка кружочка зеленым */
+    border-color: lime; /* Зеленый ободок */
+}

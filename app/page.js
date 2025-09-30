@@ -9,13 +9,18 @@ import {
     LineElement,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import annotationPlugin from "chartjs-plugin-annotation";
+// Предполагается, что useCSVData и FetalMonitor.css существуют в вашей структуре
 import useCSVData from "../hooks/useCSVparse";
+import "./FetalMonitor.css";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, annotationPlugin);
 
-const generateECGOptions = (yMin, yMax, currentTime) => {
-    const xMin = Math.max(0, currentTime - 15);
-    const xMax = xMin + 15;
+// Функция генерации опций графика (теперь без обработчика клика)
+const generateECGOptions = (yMin, yMax, currentTime, annotations) => {
+    // Определяем окно просмотра: 90 секунд до текущего времени
+    const xMin = Math.max(0, currentTime - 90);
+    const xMax = xMin + 90;
 
     return {
         responsive: true,
@@ -24,7 +29,9 @@ const generateECGOptions = (yMin, yMax, currentTime) => {
         plugins: {
             legend: { display: false },
             tooltip: { enabled: false },
+            annotation: { annotations },
         },
+        // Удален блок onClick
         scales: {
             x: {
                 type: "linear",
@@ -32,7 +39,7 @@ const generateECGOptions = (yMin, yMax, currentTime) => {
                 min: xMin,
                 max: xMax,
                 ticks: {
-                    color: "white",
+                    color: "black",
                     stepSize: 3,
                     callback: (value) => {
                         const minutes = Math.floor(value / 60);
@@ -42,22 +49,14 @@ const generateECGOptions = (yMin, yMax, currentTime) => {
                             .padStart(2, "0")}`;
                     },
                 },
-                grid: {
-                    color: "rgba(255,255,255,0.2)",
-                },
+                grid: { color: "rgba(0, 0, 0, 0.3)" },
             },
-
             y: {
                 display: true,
                 min: yMin,
                 max: yMax,
-                ticks: {
-                    color: "white",
-                    stepSize: 10,
-                },
-                grid: {
-                    color: "rgba(255,255,255,0.1)",
-                },
+                ticks: { color: "black", stepSize: 10 },
+                grid: { color: "rgba(0, 0, 0, 0.2)" },
             },
         },
         elements: {
@@ -75,9 +74,14 @@ export default function FetalMonitor() {
 
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isRunning, setIsRunning] = useState(true);
-    const [patientName, setPatientName] = useState("");
     const startTimeRef = useRef(null);
     const animationFrameRef = useRef(null);
+
+    // --- выделения (оставлено только для структуры, без интерактивного создания)
+    // Аннотации могут быть добавлены статически, но интерактивное создание удалено.
+    const [annotations, setAnnotations] = useState({});
+
+    // Удалены selectionStart и handleChartClick
 
     useEffect(() => {
         if (hrLoading || toneLoading) return;
@@ -88,6 +92,7 @@ export default function FetalMonitor() {
 
         const animate = () => {
             if (!isRunning) return;
+            // Убедитесь, что elapsedTime не сбрасывается, если анимация была приостановлена
             const timeElapsed = (performance.now() - startTimeRef.current) / 1000;
             setElapsedTime(timeElapsed);
 
@@ -98,60 +103,34 @@ export default function FetalMonitor() {
 
             if (timeElapsed < maxTime) {
                 animationFrameRef.current = requestAnimationFrame(animate);
+            } else {
+                // Остановка анимации по достижении конца данных
+                setIsRunning(false);
             }
         };
 
         animationFrameRef.current = requestAnimationFrame(animate);
-
         return () => cancelAnimationFrame(animationFrameRef.current);
     }, [heartRateData, toneData, hrLoading, toneLoading, isRunning]);
 
-    const heartRateIndex = heartRateData.findIndex(
-        (d) => d.time_sec >= elapsedTime
-    );
+    const heartRateIndex = heartRateData.findIndex((d) => d.time_sec >= elapsedTime);
     const toneIndex = toneData.findIndex((d) => d.time_sec >= elapsedTime);
 
     if (hrLoading || toneLoading) {
-        return (
-            <div
-                style={{
-                    color: "white",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: "#000",
-                    minHeight: "100vh",
-                }}
-            >
-                Загрузка данных...
-            </div>
-        );
+        return <div className="fm-container">Загрузка данных...</div>;
     }
-
     if (hrError || toneError) {
-        return (
-            <div
-                style={{
-                    color: "red",
-                    textAlign: "center",
-                    minHeight: "100vh",
-                    backgroundColor: "#000",
-                }}
-            >
-                Ошибка при загрузке данных: {hrError || toneError}
-            </div>
-        );
+        return <div className="fm-container">Ошибка при загрузке данных</div>;
     }
 
-    // ECG-данные
     const heartRateChartData = {
         datasets: [
             {
                 data: heartRateData
                     .slice(0, heartRateIndex !== -1 ? heartRateIndex + 1 : heartRateData.length)
                     .map((d) => ({ x: d.time_sec, y: d.value })),
-                borderColor: "lime",
-                backgroundColor: "lime",
+                borderColor: "green",
+                backgroundColor: "green",
             },
         ],
     };
@@ -162,149 +141,62 @@ export default function FetalMonitor() {
                 data: toneData
                     .slice(0, toneIndex !== -1 ? toneIndex + 1 : toneData.length)
                     .map((d) => ({ x: d.time_sec, y: d.value })),
-                borderColor: "red",
-                backgroundColor: "red",
+                borderColor: "blue",
+                backgroundColor: "blue",
             },
         ],
     };
 
-    const heartRateOptions = generateECGOptions(70, 230, elapsedTime);
-    const toneOptions = generateECGOptions(0, 100, elapsedTime);
+    // Вызовы теперь без аргумента handleChartClick
+    const heartRateOptions = generateECGOptions(70, 230, elapsedTime, annotations);
+    const toneOptions = generateECGOptions(0, 100, elapsedTime, annotations);
 
-    // Текущее значение для цифр справа
     const currentHR = heartRateData[heartRateIndex]?.value || 0;
     const currentUC = toneData[toneIndex]?.value || 0;
 
     return (
-        <div
-            style={{
-                backgroundColor: "#000",
-                color: "white",
-                minHeight: "100vh",
-                display: "flex",
-                flexDirection: "column",
-            }}
-        >
-            {/* Верхняя панель */}
-            <div
-                style={{
-                    backgroundColor: "#111",
-                    padding: "0.5rem 1rem",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    borderBottom: "1px solid #333",
-                }}
-            >
+        <div className="fm-container">
+            <div className="fm-header">
                 <span>MONITORING MODE</span>
                 <span>{new Date().toLocaleString()}</span>
             </div>
 
-            {/* Панель ввода пациента */}
-            <div
-                style={{
-                    backgroundColor: "#111",
-                    padding: "0.5rem 1rem",
-                    display: "flex",
-                    alignItems: "center",
-                    borderBottom: "1px solid #333",
-                }}
-            >
-                <label>Имя пациента:</label>
-                <input
-                    type="text"
-                    value={patientName}
-                    onChange={(e) => setPatientName(e.target.value)}
-                    style={{
-                        backgroundColor: "#000",
-                        color: "white",
-                        border: "1px solid #444",
-                        padding: "0.2rem 0.5rem",
-                    }}
-                />
-                <span style={{ marginLeft: "1rem", color: "lime" }}>
-          {patientName || "Нет данных"}
-        </span>
-            </div>
-
-            <div style={{ display: "flex", flex: 1 }}>
-                {/* Графики */}
-                <div style={{ flex: 3, display: "flex", flexDirection: "column" }}>
-                    <div
-                        style={{
-                            flex: 1,
-                            padding: "0.5rem",
-                            backgroundSize: "20px 20px",
-                        }}
-                    >
+            <div className="fm-main">
+                <div className="fm-graphs">
+                    <div className="fm-graph">
                         <Line options={heartRateOptions} data={heartRateChartData} />
                     </div>
-                    <div
-                        style={{
-                            flex: 1,
-                            padding: "0.5rem",
-                            backgroundSize: "20px 20px",
-                        }}
-                    >
+                    <div className="fm-graph">
                         <Line options={toneOptions} data={toneChartData} />
                     </div>
                 </div>
 
-                {/* Цифровые значения справа */}
-                <div
-                    style={{
-                        flex: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-around",
-                        alignItems: "center",
-                        backgroundColor: "#111",
-                        borderLeft: "1px solid #333",
-                    }}
-                >
-                    <div style={{ textAlign: "center" }}>
+                <div className="fm-sidebar">
+                    <div className="fm-value">
                         <div>US1</div>
-                        <div style={{ fontSize: "3rem", color: "lime" }}>{currentHR}</div>
+                        <div className="fm-value-number lime">{Math.round(currentHR)}</div>
                     </div>
-                    <div style={{ textAlign: "center" }}>
+                    <div className="fm-value">
                         <div>US2</div>
-                        <div style={{ fontSize: "3rem", color: "lime" }}>{currentHR}</div>
+                        <div className="fm-value-number lime">{Math.round(currentHR)}</div>
                     </div>
-                    <div style={{ textAlign: "center" }}>
+                    <div className="fm-value">
                         <div>UC</div>
-                        <div style={{ fontSize: "3rem", color: "red" }}>{currentUC}</div>
+                        <div className="fm-value-number red">{Math.round(currentUC)}</div>
                     </div>
                 </div>
             </div>
 
-            <div
-                style={{
-                    backgroundColor: "#111",
-                    padding: "0.5rem 1rem",
-                    borderTop: "1px solid #333",
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "1rem",
-                }}
-            >
+            <div className="fm-footer">
+                <button className="fm-button" onClick={() => setIsRunning(true)}>▶ Старт</button>
+                <button className="fm-button" onClick={() => setIsRunning(false)}>⏸ Стоп</button>
                 <button
-                    onClick={() => setIsRunning(true)}
-                    style={{ padding: "0.3rem 1rem" }}
-                >
-                    ▶ Старт
-                </button>
-                <button
-                    onClick={() => setIsRunning(false)}
-                    style={{ padding: "0.3rem 1rem" }}
-                >
-                    ⏸ Стоп
-                </button>
-                <button
+                    className="fm-button"
                     onClick={() => {
                         setElapsedTime(0);
                         startTimeRef.current = null;
+                        setIsRunning(false); // Остановка после сброса
                     }}
-                    style={{ padding: "0.3rem 1rem" }}
                 >
                     🔄 Сброс
                 </button>
@@ -312,3 +204,10 @@ export default function FetalMonitor() {
         </div>
     );
 }
+
+// helper
+const formatTime = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+};

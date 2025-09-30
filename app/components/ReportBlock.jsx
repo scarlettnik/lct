@@ -17,9 +17,26 @@ const ReportBlock = ({reportData}) => {
 
     return (
         <div className={'bento-box fm-report-block fm-patient-info'}  ref={reportRef}>
-            <h2 className="fm-subtitle">Окончательный отчет</h2>
+
+            <header style={{display: 'flex', justifyContent: 'space-between'}}>
+                <h2 className="fm-subtitle">Окончательный отчет</h2>
+                <button
+                    onClick={generatePdfReport}
+                    className="fm-print-button"
+                    style={{
+                        padding: '8px 15px',
+                        backgroundColor: '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Скачать отчет (PDF)
+                </button>
+            </header>
             <div className="report-metric">
-                Среднее значение базовой ЧСС:
+            Среднее значение базовой ЧСС:
                 <span className="metric-value">{reportData.avgBaselineFHR} уд</span>
             </div>
 
@@ -66,21 +83,6 @@ const ReportBlock = ({reportData}) => {
                 <div className="time-submetric">выраженная (90уд): <span
                     className="metric-value">{reportData.bradycardiaSevereTime} мин.</span></div>
             </div>
-            <button
-                onClick={generatePdfReport}
-                className="fm-print-button"
-                style={{
-                    marginTop: '15px',
-                    padding: '8px 15px',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                }}
-            >
-                Скачать отчет (PDF)
-            </button>
         </div>
     );
 }

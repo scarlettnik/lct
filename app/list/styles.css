@@ -1,0 +1,145 @@
+.bento-grid-container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;}
+
+.grid-title {
+    font-size: 2em;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.bento-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.bento-card {
+    display: flex; /* Делаем карточку flex-контейнером */
+    justify-content: space-between; /* Разделяем инфо-блок и стрелку */
+    align-items: center;
+    padding: 20px 0 20px 25px; /* Убираем правый padding, чтобы стрелка была с краю */
+    background-color: #f8f9fa;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    cursor: pointer;
+    border: 1px solid #e9ecef;
+    text-decoration: none;
+    color: #333;
+}
+
+.bento-card:hover {
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Занимает все доступное место слева */
+}
+
+.card-arrow-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 70px; /* Ширина области стрелки */
+    height: 100%; /* Должен заполнять по высоте */
+    padding: 0 15px;
+    /* Стиль для визуального отделения стрелки от контента */
+    border-left: 1px solid #e9ecef;
+    background-color: transparent;
+    transition: background-color 0.2s;
+}
+
+/* Стили стрелки */
+.arrow-icon {
+    width: 28px;
+    height: 28px;
+    color: #adb5bd; /* Серый цвет по умолчанию */
+    transition: color 0.2s;
+}
+
+.bento-card:hover .arrow-icon {
+    color: #2fff00; /* Синяя стрелка при наведении */
+}
+
+/* --- Стили статусов и выделения (как в прошлом шаге) --- */
+
+.status-completed {
+    background-color: #e6f7ee;
+    border-left: 5px solid #4CAF50;
+}
+
+.status-completed .user-avatar {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.status-completed .card-arrow-container {
+    border-left-color: #d1e7dd; /* Более светлый разделитель для зеленой карточки */
+}
+
+.status-completed:hover .arrow-icon {
+    color: #2e7d32; /* Темно-зеленая стрелка при наведении на заполненную карточку */
+}
+
+.text-completed {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.status-pending {
+    border-left: 5px solid #adb5bd;
+}
+
+.status-pending .user-avatar {
+    background-color: #adb5bd;
+    color: #fff;
+}
+
+.text-pending {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+
+/* --- Общие стили текста --- */
+
+.card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.user-avatar {
+    width: 35px; /* Немного уменьшен для компактности */
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1em;
+    font-weight: 600;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.user-name {
+    font-size: 1.1em; /* Немного уменьшен */
+    font-weight: 600;
+    margin: 0;
+    color: #343a40;
+}
+
+.user-status {
+    font-size: 0.9em;
+    margin-bottom: 3px;
+}
+
+.user-email {
+    font-size: 0.8em; /* Уменьшен для компактности */
+    color: #6c757d;
+}
