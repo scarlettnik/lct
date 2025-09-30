@@ -12,12 +12,13 @@ import { Line } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
 import "./style.css";
 import useCSVData from "@/hooks/useCSVparse";
+import UploadModal from "@/app/components/UploadData";
+import HRTSettingsModal from "@/app/components/HRTSettingsModal";
+import ParamModal from "@/app/components/ParamModal";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, annotationPlugin);
 
-// Функция генерации опций графика (теперь без обработчика клика)
-const generateECGOptions = (yMin, yMax, currentTime, annotations) => {
-    // Определяем окно просмотра: 90 секунд до текущего времени
+const generateECGOptions = (yMin, yMax, currentTime) => {
     const xMin = Math.max(0, currentTime - 90);
     const xMax = xMin + 90;
 
@@ -28,9 +29,7 @@ const generateECGOptions = (yMin, yMax, currentTime, annotations) => {
         plugins: {
             legend: { display: false },
             tooltip: { enabled: false },
-            annotation: { annotations },
         },
-        // Удален блок onClick
         scales: {
             x: {
                 type: "linear",
@@ -75,12 +74,9 @@ export default function FetalMonitor() {
     const [isRunning, setIsRunning] = useState(true);
     const startTimeRef = useRef(null);
     const animationFrameRef = useRef(null);
-
-    // --- выделения (оставлено только для структуры, без интерактивного создания)
-    // Аннотации могут быть добавлены статически, но интерактивное создание удалено.
-    const [annotations, setAnnotations] = useState({});
-
-    // Удалены selectionStart и handleChartClick
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDangerModalOpen, setIsDangerModalOpen] = useState(false);
+    const [paramModal, setParamModal] = useState(false);
 
     useEffect(() => {
         if (hrLoading || toneLoading) return;
@@ -91,7 +87,6 @@ export default function FetalMonitor() {
 
         const animate = () => {
             if (!isRunning) return;
-            // Убедитесь, что elapsedTime не сбрасывается, если анимация была приостановлена
             const timeElapsed = (performance.now() - startTimeRef.current) / 1000;
             setElapsedTime(timeElapsed);
 
@@ -103,7 +98,6 @@ export default function FetalMonitor() {
             if (timeElapsed < maxTime) {
                 animationFrameRef.current = requestAnimationFrame(animate);
             } else {
-                // Остановка анимации по достижении конца данных
                 setIsRunning(false);
             }
         };
@@ -146,67 +140,70 @@ export default function FetalMonitor() {
         ],
     };
 
-    // Вызовы теперь без аргумента handleChartClick
-    const heartRateOptions = generateECGOptions(70, 230, elapsedTime, annotations);
-    const toneOptions = generateECGOptions(0, 100, elapsedTime, annotations);
+    const heartRateOptions = generateECGOptions(70, 230, elapsedTime);
+    const toneOptions = generateECGOptions(0, 100, elapsedTime);
 
     const currentHR = heartRateData[heartRateIndex]?.value || 0;
     const currentUC = toneData[toneIndex]?.value || 0;
 
-    return (
-        <div className="fm-container">
-            <div className="fm-header">
-                <span>MONITORING MODE</span>
-                <span>{new Date().toLocaleString()}</span>
-            </div>
-
-            <div className="fm-main">
-                <div className="fm-graphs">
-                    <div className="fm-graph">
-                        <Line options={heartRateOptions} data={heartRateChartData} />
-                    </div>
-                    <div className="fm-graph">
-                        <Line options={toneOptions} data={toneChartData} />
-                    </div>
+    return (<>
+            <div className="fm-container">
+                <div className="fm-header">
+                    <span>MONITORING MODE</span>
+                    <span>{new Date().toLocaleString()}</span>
                 </div>
 
-                <div className="fm-sidebar">
-                    <div className="fm-value">
-                        <div>US1</div>
-                        <div className="fm-value-number lime">{Math.round(currentHR)}</div>
+                <div className="fm-main">
+                    <div className="fm-graphs">
+                        <div className="fm-graph">
+                            <Line options={heartRateOptions} data={heartRateChartData}/>
+                        </div>
+                        <div className="fm-graph">
+                            <Line options={toneOptions} data={toneChartData}/>
+                        </div>
                     </div>
-                    <div className="fm-value">
-                        <div>US2</div>
-                        <div className="fm-value-number lime">{Math.round(currentHR)}</div>
-                    </div>
-                    <div className="fm-value">
-                        <div>UC</div>
-                        <div className="fm-value-number red">{Math.round(currentUC)}</div>
+
+                    <div className="fm-sidebar">
+                        <div className="fm-value">
+                            <div>US1</div>
+                            <div className="fm-value-number lime">{Math.round(currentHR)}</div>
+                        </div>
+                        <div className="fm-value">
+                            <div>US2</div>
+                            <div className="fm-value-number lime">{Math.round(currentHR)}</div>
+                        </div>
+                        <div className="fm-value">
+                            <div>UC</div>
+                            <div className="fm-value-number red">{Math.round(currentUC)}</div>
+                        </div>
                     </div>
                 </div>
-            </div>
+                <footer className='fm-footer'>
+                    <button className="fm-button" onClick={() => setIsDangerModalOpen(true)}>
+                        Параметры тревоги
+                    </button>
+                    <button className="fm-button" onClick={() => setIsModalOpen(true)}>
+                        Загрузить данные
+                    </button>
+                    <button className="fm-button" onClick={() => setParamModal(true)}>Анализ</button>
+                    <button className="fm-button" onClick={() => setIsRunning(false)}>Остановить симуляицю</button>
+                    <button className="fm-button">Устранять кардиодеффект</button>
+                </footer>
 
-            <div className="fm-footer">
-                <button className="fm-button" onClick={() => setIsRunning(true)}>▶ Старт</button>
-                <button className="fm-button" onClick={() => setIsRunning(false)}>⏸ Стоп</button>
-                <button
-                    className="fm-button"
-                    onClick={() => {
-                        setElapsedTime(0);
-                        startTimeRef.current = null;
-                        setIsRunning(false); // Остановка после сброса
-                    }}
-                >
-                    🔄 Сброс
-                </button>
             </div>
-        </div>
+            <UploadModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+            />
+            <HRTSettingsModal
+                isOpen={isDangerModalOpen}
+                onClose={() => setIsDangerModalOpen(false)}
+            />
+
+            <ParamModal
+                isOpen={paramModal}
+                onClose={() => setParamModal(false)}
+            />
+        </>
     );
 }
-
-// helper
-const formatTime = (sec) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-};

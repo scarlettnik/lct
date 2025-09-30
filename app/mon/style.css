@@ -30,7 +30,6 @@
 
 .fm-graph {
     flex: 1;
-    padding: 0.5rem;
     background-size: 20px 20px;
 }
 
@@ -62,7 +61,7 @@
 }
 
 .fm-footer {
-    background-color: #111;
+    background-color: white;
     padding: 0.5rem 1rem;
     border-top: 1px solid #333;
     display: flex;
@@ -71,8 +70,10 @@
 }
 
 .fm-button {
-    padding: 0.3rem 1rem;
-    background: #222;
+    border-radius: 8px;
+
+    padding: 20px;
+    background: #258505;
     color: white;
     border: none;
     cursor: pointer;

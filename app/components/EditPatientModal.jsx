@@ -14,9 +14,7 @@ const EditPatientModal = ({ isOpen, onClose, patientData, onSave }) => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        // Обработка основных полей
         if (name.startsWith('bga_')) {
-            // Обработка данных газа в крови
             const index = parseInt(name.split('_')[1], 10);
             const key = name.split('_')[2];
 
@@ -25,7 +23,6 @@ const EditPatientModal = ({ isOpen, onClose, patientData, onSave }) => {
                 newBGA[index] = {
                     ...newBGA[index],
                     [key]: value,
-                    // Простая логика: если значение не равно норме, статус меняется
                     isNormal: true // Здесь можно добавить более сложную логику проверки
                 };
             }

@@ -116,7 +116,6 @@ export default function FetalMonitor() {
         }
     ];
 
-    // Объединяем все аннотации в один список
     const allAnnotations = useMemo(() => {
         return [...hrAnnotations, ...ucAnnotations];
     }, []);
