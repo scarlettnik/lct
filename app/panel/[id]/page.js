@@ -28,7 +28,6 @@ ChartJS.register(
     annotationPlugin
 );
 
-
 const formatTimeMMSS = (sec) => {
     const s = Math.max(0, Math.round(sec));
     const m = Math.floor(s / 60);
@@ -70,9 +69,7 @@ const transformChartData = (jsonArr) => {
         }));
 };
 
-
 export default function FetalMonitor() {
-    // --- ИНИЦИАЛИЗАЦИЯ РОУТЕРА И ПАРАМЕТРОВ ---
     const router = useRouter();
     const params = useParams();
     const patientId = params.id;
@@ -92,7 +89,6 @@ export default function FetalMonitor() {
         part: { data: { bpm: [], uterus: [] } },
         exam: null
     });
-    // 💡 НОВОЕ СОСТОЯНИЕ: для хранения полного описания выбранного исследования
     const [selectedExaminationDetails, setSelectedExaminationDetails] = useState(null);
 
     const heartRateData = useMemo(() => {
@@ -104,7 +100,6 @@ export default function FetalMonitor() {
         const uterusData = selectedExaminationData.part?.data?.uterus;
         return transformChartData(uterusData);
     }, [selectedExaminationData.part]);
-
 
     const selectChart = useCallback((chartId, partData, examData) => {
         setCurrentChartId(chartId);
@@ -160,46 +155,25 @@ export default function FetalMonitor() {
         }
     }, [patientId]);
 
-
     useEffect(() => {
         fetchPatientData(true);
     }, [fetchPatientData]);
 
+    // 🔥 Динамические аннотации из выбранных данных
+    const dynamicAnnotations = useMemo(() => {
+        if (!selectedExaminationDetails?.intervals) return [];
+        return selectedExaminationDetails.intervals.map((int, idx) => ({
+            id: `interval-${idx}`,
+            title: `Интервал ${idx + 1}`,
+            description: int.message,
+            xMin: int.start,
+            xMax: int.end,
+        }));
+    }, [selectedExaminationDetails]);
 
-    const hrAnnotations = [
-        {
-            id: "lateDecel",
-            title: "Поздняя децелерация",
-            description: "Критическое снижение ЧСС плода до 80 уд/мин на фоне схватки.",
-            xMin: 120,
-            xMax: 140,
-        },
-        {
-            id: "earlyDecel",
-            title: "Ранняя децелерация",
-            description: "Снижение ЧСС совпадает по времени с началом схватки.",
-            xMin: 200,
-            xMax: 260,
-        }
-    ];
-
-    const ucAnnotations = [
-        {
-            id: "strongUC",
-            title: "Сильная схватка",
-            description: "Высокая амплитуда маточного тонуса.",
-            xMin: 410,
-            xMax: 590,
-        }
-    ];
-
-    const allAnnotations = useMemo(() => {
-        return [...hrAnnotations, ...ucAnnotations];
-    }, []);
-
-    const makeBoxAnnotations = (annots) => {
-        return Object.fromEntries(
-            annots.map(a => [
+    const makeBoxAnnotations = (annots) =>
+        Object.fromEntries(
+            annots.map((a) => [
                 a.id,
                 {
                     type: "box",
@@ -210,15 +184,13 @@ export default function FetalMonitor() {
                     backgroundColor: "rgba(255, 100, 150, 0.3)",
                     borderWidth: 1,
                     drawTime: "beforeDatasetsDraw",
-                }
+                },
             ])
         );
-    };
 
     const [zoomRange, setZoomRange] = useState(null);
     const [chartDisplayWidth, setChartDisplayWidth] = useState(100);
     const [selectedAnnotation, setSelectedAnnotation] = useState(null);
-
 
     const { sortedHR, sortedUC, xMin, xMax } = useMemo(() => {
         const hr = Array.isArray(heartRateData) ? [...heartRateData] : [];
@@ -244,7 +216,6 @@ export default function FetalMonitor() {
         }
     }, [xMin, xMax, zoomRange]);
 
-
     const handleChartClick = useCallback((event, elements, chart) => {
         if (!chart) {
             setSelectedAnnotation(null);
@@ -256,12 +227,12 @@ export default function FetalMonitor() {
         const clickX = nativeEvent.clientX - rect.left;
         const xValue = chart.scales.x.getValueForPixel(clickX);
 
-        const hit = allAnnotations.find(
+        const hit = dynamicAnnotations.find(
             (a) => xValue >= a.xMin && xValue <= a.xMax
         );
 
         setSelectedAnnotation(hit);
-    }, [allAnnotations]);
+    }, [dynamicAnnotations]);
 
     const isExaminationSelected = currentChartId !== null;
     const hasHRData = sortedHR.length > 0;
@@ -296,11 +267,6 @@ export default function FetalMonitor() {
     ) : null;
 
     const [graphMin, graphMax] = zoomRange || [xMin, xMax];
-
-    const reportData = (() => {
-        // Здесь можно было бы рассчитать отчет, но используем заглушку
-        return { message: "Отчет по КТГ не рассчитан в демо-режиме.", severity: "info" }
-    }, [sortedHR, sortedUC, graphMin, graphMax]);
 
     const baseX = {
         type: "linear",
@@ -346,7 +312,7 @@ export default function FetalMonitor() {
             ticks: { color: "black", stepSize: 20 },
             grid: { color: "rgba(0, 0, 0, 0.3)" },
         },
-        hrAnnotations
+        dynamicAnnotations
     );
 
     const ucOptions = createOptions(
@@ -356,9 +322,8 @@ export default function FetalMonitor() {
             ticks: { color: "black", stepSize: 10 },
             grid: { color: "rgba(0, 0, 0, 0.3)" },
         },
-        ucAnnotations
+        dynamicAnnotations
     );
-
 
     const hrDataset = {
         datasets: [{
@@ -384,20 +349,15 @@ export default function FetalMonitor() {
         }],
     };
 
-
     const handleConnect = () => {
         if (patientData?.ongoing_examination_id) {
             const examinationId = patientData.ongoing_examination_id;
-
             const patientIdToPass = patientData.id;
-
             const url = `/streaming/${patientIdToPass}/${examinationId}`;
-
             router.push(url);
         }
     };
 
-    // 💡 ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ для вывода метаданных
     const renderMetadata = (metadata) => {
         if (!metadata) return <p>Метаданные отсутствуют.</p>;
 
@@ -434,7 +394,6 @@ export default function FetalMonitor() {
                     />
                 </aside>
 
-
                 <div className="bento-box fm-graph fm-graph-hr">
                     <div className="chart-wrapper" style={{width: `${chartDisplayWidth}%`}}>
                         {chartPlaceholder ? chartPlaceholder : (
@@ -458,7 +417,6 @@ export default function FetalMonitor() {
                     </div>
                 </div>
 
-
                 <div className="fm-store">
                     <ChartSelector
                         patient={patientData}
@@ -468,7 +426,7 @@ export default function FetalMonitor() {
                         loading={hrLoading || toneLoading}
                     />
                 </div>
-                {/* 💡 ШАГ 2: ВЫВОД ДАННЫХ В БЛОК FM-PREDICT */}
+
                 <div className='fm-predict bento-box'>
                     <h2 className="fm-subtitle">Информация по выделенной области</h2>
 
