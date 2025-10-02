@@ -19,14 +19,30 @@
     margin-top: 8px;
 }
 
-
-/* Оформление списка групп (ДАТ) */
 .chart-selector-groups-list {
-    list-style: none; /* Убираем стандартные маркеры списка */
+    list-style: none;
     padding: 0;
     margin: 0;
 }
+.chart-selector-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
 
+.chart-selector-scrollable-content {
+    max-height: 75vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.chart-selector-scrollable-content::-webkit-scrollbar {
+    width: 6px;
+}
+.chart-selector-scrollable-content::-webkit-scrollbar-thumb {
+    background-color: #d0d0d0;
+    border-radius: 3px;
+}
 .chart-selector-group-item {
     margin-bottom: 15px;
     padding-bottom: 10px;
@@ -44,7 +60,6 @@
     color: #333;
 }
 
-/* Стили для кнопок-переключателей внутри группы */
 .chart-selector-buttons-group {
     display: flex;
     flex-wrap: wrap;
@@ -76,7 +91,7 @@
 }
 
 .record-sublist {
-    margin-left: 30px;
+    margin-left: 10px;
 }
 
 .record-list-item.active {
@@ -85,8 +100,33 @@
     font-weight: bold;
 }
 
-/* Изменение кружочка для активного элемента */
 .record-list-item.active::before {
     background-color: lime; /* Заливка кружочка зеленым */
     border-color: lime; /* Зеленый ободок */
+}
+
+.record-part {
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-right: 8px; /* Отступ между частями */
+    margin-bottom: 5px; /* Отступ между строками, если переносится */
+    align-items: center;
+}
+
+.record-part:hover {
+    background-color: #f0f0f0;
+}
+
+.record-part.active-green {
+    background-color: #e6ffe6; /* Светло-зелёный фон */
+    border-color: #4CAF50; /* Зелёная граница */
+    color: #1a4d1a; /* Тёмно-зелёный текст для контраста */
+    font-weight: bold;
+}
+
+.record-part.active-green:hover {
+    background-color: #d9f9d9; /* Чуть темнее зелёный при наведении */
 }

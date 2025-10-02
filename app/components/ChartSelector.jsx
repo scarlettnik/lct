@@ -51,8 +51,8 @@ const groupAndFormatCharts = (chartList) => {
 };
 
 const ChartSelector = ({ selectChart, data, loading, patient }) => {
+    // В selected храним: { examinationId, partIndex, recordId }
     const [selected, setSelected] = useState(null);
-    // { examinationId, partIndex, recordId }
 
     const groupedCharts = useMemo(() => {
         return groupAndFormatCharts(patient.examinations);
@@ -86,84 +86,89 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
 
         const examinationId = patient.examinations[0]?.id;
         if (!examinationId) return;
-
-        const fetchExaminationData = async () => {
-            try {
-                const res = await fetch(
-                    `https://hack.nearby-project.ru/v1/patients/${patient.id}/examinations/${examinationId}`
-                );
-                const json = await res.json();
-                console.log("Examination data:", json);
-            } catch (err) {
-                console.error("Ошибка при загрузке examination:", err);
-            }
-        };
-
-        fetchExaminationData();
     }, [patient?.id, patient?.examinations]);
 
     const handleChartClick = async (examinationId, partIndex, recordId) => {
         const selectedPart = { examinationId, partIndex, recordId };
         setSelected(selectedPart);
 
-        if (typeof selectChart === "function") {
-            selectChart(selectedPart);
-        } else {
-            console.error("selectChart prop is not a function or is missing!");
-        }
+        let jsonPart = null;
+        let jsonExam = null;
 
         try {
-            // Данные части
+            // 1. Fetch Part Data
             const resPart = await fetch(
                 `https://hack.nearby-project.ru/v1/patients/${patient.id}/examinations/${examinationId}/part/${partIndex}`
             );
-            const jsonPart = await resPart.json();
+            jsonPart = await resPart.json(); // Assign data
             console.log(`📊 Данные части #${partIndex}:`, jsonPart);
 
-            // Данные всего исследования
+            // 2. Fetch Examination Metadata
             const resExam = await fetch(
                 `https://hack.nearby-project.ru/v1/patients/${patient.id}/examinations/${examinationId}`
             );
-            const jsonExam = await resExam.json();
+            jsonExam = await resExam.json(); // Assign data
             console.log("🧾 Полное описание исследования:", jsonExam);
+
         } catch (err) {
             console.error("Ошибка при загрузке данных:", err);
+            // Optionally call selectChart with null data on error
+        }
+
+        // 3. 🚀 NEW: Call the prop function, passing the fetched data
+        if (typeof selectChart === "function") {
+            // Pass the primary selection object, the Part Data, and the Exam Metadata
+            selectChart(selectedPart, jsonPart, jsonExam);
+        } else {
+            console.error("selectChart prop is not a function or is missing!");
         }
     };
 
     return (
         <div className="bento-box chart-selector-container">
             <h2 className="fm-subtitle chart-selector-title">Выбор КТГ записи</h2>
-            <ul className="chart-selector-groups-list">
-                {groupedCharts.map((group) => (
-                    <li key={group.date} className="chart-selector-group-item">
-                        <h3 className="group-date-title">{group.date}</h3>
 
-                        <ul className="record-sublist">
-                            {group.records.map((record) => (
-                                <li key={record.id} className="record-list-item">
-                                    {record.metadata?.part_count &&
-                                        Array.from({ length: record.metadata.part_count }, (_, i) => {
-                                            const isActive =
-                                                selected?.examinationId === record.id &&
-                                                selected?.partIndex === i + 1;
-                                            return (
-                                                <div
-                                                    key={i}
-                                                    className={`record-part ${isActive ? "active" : ""}`}
-                                                    onClick={() => handleChartClick(record.id, i + 1, record.id)}
-                                                >
-                                                    <span className="record-text">Запись #</span>
-                                                    <span>{i + 1}</span>
-                                                </div>
-                                            );
-                                        })}
-                                </li>
-                            ))}
-                        </ul>
-                    </li>
-                ))}
-            </ul>
+            {groupedCharts.length === 0 ? (
+                <div className="no-data-placeholder">
+                    <p>Нет доступных данных об исследованиях для этого пациента.</p>
+                </div>
+            ) : (
+                <div className="chart-selector-scrollable-content" style={{height:'100vh', }}>
+                    <ul className="chart-selector-groups-list">
+                        {groupedCharts.map((group) => (
+                            <li key={group.date} className="chart-selector-group-item">
+                                <h3 className="group-date-title">{group.date}</h3>
+
+                                <div className="record-sublist">
+                                    {group.records.map((record) => (
+                                        <div key={record.id} className="record-list-item">
+                                            {record.metadata?.part_count &&
+                                                Array.from({ length: record.metadata.part_count }, (_, i) => {
+                                                    // Проверка на то, активна ли эта часть:
+                                                    const isActive =
+                                                        selected?.examinationId === record.id &&
+                                                        selected?.partIndex === i + 1;
+
+                                                    return (
+                                                        <div
+                                                            key={i}
+                                                            // Добавляем класс 'active-green' для зелёного выделения
+                                                            className={`record-part ${isActive ? "active-green" : ""}`}
+                                                            onClick={() => handleChartClick(record.id, i + 1, record.id)}
+                                                        >
+                                                            <span className="record-text">Запись #</span>
+                                                            <span>{i + 1}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                    ))}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </div>
     );
 };

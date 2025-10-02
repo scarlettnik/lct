@@ -100,14 +100,12 @@ export default function FetalMonitor() {
     const bufferSeconds = 10 * 60;
     const [wsUrl, setWsUrl] = useState(null);
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(true);
     const [paramModalOpen, setParamModalOpen] = useState(false);
     const [isDangerModalOpen, setIsDangerModalOpen] = useState(false);
 
-    // Состояние для пороговых значений ЧСС и громкости
     const [hrtThresholds, setHrtThresholds] = useState({ min: 60, max: 160, volume: 80 });
 
-    // 📌 РЕФ: Для управления аудиосигналом. Инициализируем как null.
     const audioRef = useRef(null);
 
     // ----------------------------------------------------
@@ -124,16 +122,11 @@ export default function FetalMonitor() {
     }, []);
 
 
-    /**
-     * Обработчик сохранения настроек из модального окна.
-     * Обновляет локальный стейт hrtThresholds.
-     */
     const handleSettingsSave = (newMin, newMax, newVolume) => {
         setHrtThresholds({ min: newMin, max: newMax, volume: newVolume });
         setIsDangerModalOpen(false);
     };
 
-    // Определяем текущее состояние ЧСС
     const currentHR = heartRateData.length ? Math.round(heartRateData[heartRateData.length - 1].y) : 0;
     const currentUC = toneData.length ? Math.round(toneData[toneData.length - 1].y) : 0;
 
@@ -248,14 +241,10 @@ export default function FetalMonitor() {
 
         if (examinationId) {
             const newWsUrl = `wss://hack.nearby-project.ru/v1/patients/${patientId}/examinations/${examinationId}/emulation/start`;
-
             setHeartRateData([]);
             setToneData([]);
             setLatestTime(0);
-
             setWsUrl(newWsUrl);
-
-            alert(`Загрузка завершена! Начинаем мониторинг.\nПациент ID: ${patientId}\nЭкзамен ID: ${examinationId}`);
         } else {
             alert(`Загрузка завершена, но не удалось получить ID экзамена для запуска мониторинга.`);
         }

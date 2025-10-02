@@ -124,7 +124,7 @@
 
 
 .secondaryButton {
-    background: linear-gradient(135deg, #1100ff 0%, #7db0ea 50%, #738ffd 100%);
+    background: linear-gradient(135deg, #1100ff 0%, #77b4fa 50%, #4e63b5 100%);
     color: white;
     box-shadow: 0 0 15px #1100ff;
 }
@@ -189,7 +189,7 @@
 }
 
 .primaryButton {
-    background: linear-gradient(-135deg, #e802bb, #d66fed, #f68df4);
+    background: linear-gradient(-135deg, #e802bb, #db7ced, #e109de);
     background-size: 300% 300%;
     color: #ffffff;
     border: none;

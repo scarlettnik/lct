@@ -16,7 +16,7 @@ import annotationPlugin from 'chartjs-plugin-annotation';
 import ReportBlock from "@/app/components/ReportBlock";
 import ChartSelector from "@/app/components/ChartSelector";
 import PatientInfo from "@/app/components/PatientInfo";
-import useCSVData from "@/hooks/useCSVparse";
+// import useCSVData from "@/hooks/useCSVparse"; // Убран
 import {useParams} from "next/navigation";
 
 ChartJS.register(
@@ -37,6 +37,7 @@ const formatTimeMMSS = (sec) => {
     return `${m.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`;
 };
 
+// ... (ChartControl component remains unchanged) ...
 const ChartControl = ({ label, currentWidth, setWidth }) => {
     const minWidth = 100;
     const maxWidth = 400;
@@ -57,12 +58,26 @@ const ChartControl = ({ label, currentWidth, setWidth }) => {
                 />
             </div>
         </div>
-    );
+    )
 }
 
+// Функция для трансформации данных
+const transformChartData = (jsonArr) => {
+    if (!Array.isArray(jsonArr)) return [];
+
+    return jsonArr
+        .filter(item => item && item.length === 2 && typeof item[0] === 'number' && typeof item[1] === 'number')
+        .map(item => ({
+            time_sec: item[0], // Время (X)
+            value: item[1]      // Значение (Y)
+        }));
+};
+
+
 export default function FetalMonitor() {
-    const { data: heartRateData = [], loading: hrLoading } = useCSVData("/data/bpm_test.csv");
-    const { data: toneData = [], loading: toneLoading } = useCSVData("/data/iterus_test.csv");
+    // hrLoading и toneLoading теперь могут быть просто false, так как данных из CSV нет
+    const hrLoading = false;
+    const toneLoading = false;
 
     const hrChartRef = useRef(null);
     const containerRef = useRef(null);
@@ -70,16 +85,35 @@ export default function FetalMonitor() {
     const params = useParams();
     const patientId = params.id;
 
-    const [currentChartId, setCurrentChartId] = useState(null);
     const [isPatientDataLoading, setIsPatientDataLoading] = useState(true);
     const [patientFetchError, setPatientFetchError] = useState(null);
 
     const [patientData, setPatientData] = useState({});
 
-    const selectChart = useCallback((chartId) => {
+    const [currentChartId, setCurrentChartId] = useState(null);
+    const [selectedExaminationData, setSelectedExaminationData] = useState({
+        part: { data: { bpm: [], uterus: [] } },
+        exam: null
+    });
+
+    const heartRateData = useMemo(() => {
+        const bpmData = selectedExaminationData.part?.data?.bpm;
+        return transformChartData(bpmData);
+    }, [selectedExaminationData.part]);
+
+    const toneData = useMemo(() => {
+        const uterusData = selectedExaminationData.part?.data?.uterus;
+        return transformChartData(uterusData);
+    }, [selectedExaminationData.part]);
+
+
+    const selectChart = useCallback((chartId, partData, examData) => {
         setCurrentChartId(chartId);
+        const safePartData = partData?.data ? partData : { data: { bpm: [], uterus: [] } };
+        setSelectedExaminationData({ part: safePartData, exam: examData });
         console.log(`Chart selected/updated to ID: ${chartId}`);
     }, []);
+
 
     useEffect(() => {
         let isMounted = true;
@@ -99,18 +133,18 @@ export default function FetalMonitor() {
                 setPatientData(data);
 
                 if (data.examinations && data.examinations.length > 0) {
-                    setCurrentChartId(data.examinations[0].id);
+                    const firstExam = data.examinations[0];
+                    setCurrentChartId(firstExam.id);
+                    setSelectedExaminationData({
+                        part: { data: { bpm: [], uterus: [] } },
+                        exam: firstExam
+                    });
                 }
 
             } catch (error) {
                 console.error("Ошибка при получении данных пациента:", error);
                 if (isMounted) {
                     setPatientFetchError(`Не удалось загрузить данные пациента: ${error.message}`);
-                    setPatientData(prev => ({
-                        ...prev,
-                        name: "Ошибка загрузки данных",
-                        doctor: "Проверьте ID или API"
-                    }));
                 }
             } finally {
                 if (isMounted) {
@@ -178,7 +212,6 @@ export default function FetalMonitor() {
 
     const [zoomRange, setZoomRange] = useState(null);
     const [chartDisplayWidth, setChartDisplayWidth] = useState(100);
-
     const [selectedAnnotation, setSelectedAnnotation] = useState(null);
 
 
@@ -201,10 +234,11 @@ export default function FetalMonitor() {
     }, [heartRateData, toneData]);
 
     useEffect(() => {
-        if (!hrLoading && !toneLoading && xMax > xMin && zoomRange === null) {
+        // Условие для сброса zoomRange при загрузке новых данных
+        if (xMax > xMin && (zoomRange === null || zoomRange[1] !== xMax)) {
             setZoomRange([xMin, xMax]);
         }
-    }, [hrLoading, toneLoading, xMin, xMax, zoomRange]);
+    }, [xMin, xMax, zoomRange]);
 
 
     const handleChartClick = useCallback((event, elements, chart) => {
@@ -226,18 +260,46 @@ export default function FetalMonitor() {
     }, [allAnnotations]);
 
 
-    if (hrLoading || toneLoading || zoomRange === null || isPatientDataLoading) {
+    // --- НОВАЯ ЛОГИКА: Обработка загрузки и отсутствия выбора ---
+    const isExaminationSelected = currentChartId !== null;
+    const hasHRData = sortedHR.length > 0;
+    const hasUCData = sortedUC.length > 0;
+
+    // 1. Полный экран загрузки/ошибки (для данных пациента)
+    if (patientFetchError) {
         return (
             <div className="loading-screen">
-                {patientFetchError ? (
-                    <p style={{ color: 'red' }}>{patientFetchError}</p>
-                ) : (
-                    <p>Загрузка данных...</p>
-                )}
+                <p style={{ color: 'red' }}>{patientFetchError}</p>
             </div>
         );
     }
-    const [graphMin, graphMax] = zoomRange;
+
+    if (isPatientDataLoading) {
+        return (
+            <div className="loading-screen">
+                <p>Загрузка данных пациента...</p>
+            </div>
+        );
+    }
+
+    // 2. Определение текста-заглушки для области графиков
+    let chartPlaceholderText = null;
+
+    if (!isExaminationSelected) {
+        chartPlaceholderText = "Выберите исследование";
+    } else if (zoomRange === null) {
+        // zoomRange === null означает, что данные загружены, но графики еще не инициализированы/масштабированы
+        chartPlaceholderText = "Загрузка данных графика...";
+    }
+
+    const chartPlaceholder = chartPlaceholderText ? (
+        <p className="chart-status-text">{chartPlaceholderText}</p>
+    ) : null;
+
+    // -----------------------------------------------------------
+
+
+    const [graphMin, graphMax] = zoomRange || [xMin, xMax]; // Fallback to calculated min/max
 
     const reportData = (() => {
         return { message: "Отчет по КТГ не рассчитан в демо-режиме.", severity: "info" }
@@ -318,7 +380,7 @@ export default function FetalMonitor() {
         datasets: [{
             label: "Схватки (UC)",
             data: sortedUC.map((d) => ({ x: Number(d.time_sec), y: Number(d.value) })),
-            borderColor: "red",
+            borderColor: "blue",
             borderWidth: 2,
             pointRadius: 0,
             tension: 0,
@@ -348,13 +410,24 @@ export default function FetalMonitor() {
 
                 <div className="bento-box fm-graph fm-graph-hr">
                     <div className="chart-wrapper" style={{width: `${chartDisplayWidth}%`}}>
-                        <Line ref={hrChartRef} options={hrOptions} data={hrDataset}/>
+                        {chartPlaceholder ? chartPlaceholder : (
+                            hasHRData ?
+                                <Line ref={hrChartRef} options={hrOptions} data={hrDataset}/> :
+                                <p className="chart-status-text">Для просмотра графика выберите исследование, обработка
+                                    может занять несколько секунд</p>
+                        )}
                     </div>
                 </div>
 
                 <div className="bento-box fm-graph fm-graph-uc">
-                    <div className="chart-wrapper" style={{width: `${chartDisplayWidth}%`}}>
-                        <Line options={ucOptions} data={ucDataset}/>
+                <div className="chart-wrapper" style={{width: `${chartDisplayWidth}%`}}>
+                        {chartPlaceholder ? chartPlaceholder : (
+                            hasUCData ?
+                                <>
+                                    <p>Частота маточных сокращений</p>
+                                    <Line options={ucOptions} data={ucDataset}/></> :
+                                <p className="chart-status-text">Для просмотра графика выберите исследование, обработка может занять несколько секунд</p>
+                        )}
                     </div>
                 </div>
 

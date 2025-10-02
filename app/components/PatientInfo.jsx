@@ -29,10 +29,10 @@ const PatientInfo = ({patient}) => {
                     style={{width: '60%'}}>{patient?.info?.somatic_diseases || 'Нет данных'}</span>
                 </div>
                 <div className="fm-patient-detail"><p style={{width: '35%'}}>Течение беременности: </p><span
-                    style={{width: '60%'}}>{patient?.info?.pregnancy_course || 'Наблюдалась в ЖК с 7 недель. Течение физиологическое, без осложнений. Ранний токсикоз лёгкой степени (до 10 недель) купирован диетой. Анализы крови, мочи и скрининги в норме. Прибавка в весе за беременность: +10.5 кг. Плановые УЗИ и допплерометрия (20, 32 нед.) – без патологий.'}</span>
+                    style={{width: '60%'}}>{patient?.info?.pregnancy_course || 'Нет данных'}</span>
                 </div>
                 <div className="fm-patient-detail"><p style={{width: '35%'}}>Последняя менструация: </p> <span
-                    style={{width: '60%'}}>{patient?.info?.last_menstrual_period}</span></div>
+                    style={{width: '60%'}}>{patient?.info?.last_menstrual_period || 'Нет данных'}</span></div>
             </div>
 
             <div className="fm-bga-section">

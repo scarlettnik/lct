@@ -3,69 +3,72 @@ import styles from './start/styles.module.css';
 
 const features = [
     {
-        title: "Здесь вообще будет демка",
-        className: `${styles.size2x2} ${styles.bentoBlock}`,
-        icon: "❤️"
+        title: "ДЕМОНСТРАЦИЯ ПУЛЬСА",
+        description: "Визуализация сердцебиения плода в реальном времени.",
+        className: `${styles.size2x2} ${styles.bentoBlock} ${styles.demoBlock}`,
     },
     {
-        title: "НАЧАТЬ СИМУЛЯЦИЮ СЕЙЧАС",
-        description: "Начните практику, осваивая ключевые навыки интерпретации КТГ в динамических сценариях.",
-        className: `${styles.size2x1} ${styles.buttonCard}`,
+        title: "НАЧАТЬ СИМУЛЯЦИЮ (КТГ)",
+        className: `${styles.size2x2} ${styles.buttonCard}`,
         href: "/mon",
         isPrimary: true,
     },
     {
-        title: "ГОТОВЫЙ КЕЙС И ОТЧЕТЫ ПАЦИЕНТОВ",
-        description: "Ознакомьтесь с подробным готовым отчетом по сложному клиническому случаю и анализу действий.",
-        className: `${styles.size2x1} ${styles.buttonCard}`,
+        title: "ПОСМОТРЕТЬ АНАЛИЗ КЕЙСОВ",
+        className: `${styles.size2x2} ${styles.buttonCard}`,
         href: "/list",
         isSecondary: true,
     },
     {
-        title: "Полный Дебрифинг",
-        description: "Мгновенный отчет о принятых решениях, времени реакции и клинической эффективности.",
-        className: `${styles.size1x1} ${styles.bentoBlock}`,
-        icon: "📈"
-    },
-    {
-        title: "Мультиплатформенный Доступ",
-        description: "Облачная технология. Работайте на ПК, планшете или смартфоне без установки тяжелого ПО.",
-        className: `${styles.size1x1} ${styles.bentoBlock}`,
-        icon: "🌐"
-    },
-    {
-        title: "Протоколы FIGO/NICE",
-        description: "Встроенные обучающие модули и подсказки, соответствующие международным клиническим рекомендациям.",
-        className: `${styles.size1x1} ${styles.bentoBlock}`,
-        icon: "📚"
-    },
-    {
-        title: "Улучшение Навыков на 95%",
-        description: "Доказанное повышение точности интерпретации КТГ и скорости принятия решений.",
-        className: `${styles.size1x1} ${styles.bentoBlock}`,
-        icon: "🎯"
-    },
-    {
-        title: "Полный Дебрифинг",
-        description: "Мгновенный отчет о принятых решениях, времени реакции и клинической эффективности.",
+        title: "ЭКСПЕРТНАЯ ВАЛИДАЦИЯ",
+        description: "Консультировались с практикующими акушерами-гинекологами.",
         className: `${styles.size2x1} ${styles.bentoBlock}`,
+        icon: "🩺"
+    },
+    {
+        title: "УДАЛЕННЫЙ ДОСТУП",
+        description: "Облачный мониторинг. Врач может подключиться из кабинета",
+        className: `${styles.size2x1} ${styles.bentoBlock}`,
+        icon: "☁️"
+    },
+    {
+        title: "ПРЕДСКАЗАНИЕ РИСКОВ",
+        description: "Краткосрочные и долгосрочные прогнозы исходов на основе анализа паттернов КТГ.",
+        className: `${styles.size1x1} ${styles.bentoBlock}`,
+        icon: "🔮"
+    },
+    {
+        title: "АВТОМАТИЧЕСКАЯ АНАЛИТИКА",
+        description: "Мгновенный отчет о времени реакции, точности диагноза и клинической эффективности.",
+        className: `${styles.size1x1} ${styles.bentoBlock}`,
         icon: "📊"
     },
     {
-        title: "Мультиплатформенный Доступ",
-        description: "Облачная технология. Работайте на ПК, планшете или смартфоне без установки тяжелого ПО.",
-        className: `${styles.size1x1} ${styles.bentoBlock}`,
-        icon: "💻"
-    },
-    {
-        title: "Протоколы FIGO/NICE",
-        description: "Встроенные обучающие модули и подсказки, соответствующие международным клиническим рекомендациям.",
+        title: "ДОПОЛНИТЕЛЬНЫЕ ИСТОЧНИИКИ",
+        description: "Повысили точность предсказаний с помощью использования дополнительных данных",
         className: `${styles.size1x1} ${styles.bentoBlock}`,
         icon: "📑"
     },
+    {
+        title: "ФОКУС НА АНОМАЛИЯХ",
+        description: "Система выделяет подозрительные сегменты КТГ для акцентированного внимания.",
+        className: `${styles.size1x1} ${styles.bentoBlock}`,
+        icon: "🔍"
+    },
 ];
 
-const FeatureCard = ({ title, description, className, icon, href, isPrimary, isSecondary }) => {
+const FeatureCard = ({ title, description, className, icon, href, isPrimary, isSecondary, component: Component }) => {
+    if (Component) {
+        return (
+            <div className={className}>
+                <h3 className={styles.featureTitle}>{title}</h3>
+                <p className={styles.featureDescription}>{description}</p>
+                <Component />
+            </div>
+        );
+    }
+
+    // Рендеринг кнопок
     if (href) {
         const buttonClass = isPrimary ? styles.primaryButton : styles.secondaryButton;
 
@@ -78,6 +81,7 @@ const FeatureCard = ({ title, description, className, icon, href, isPrimary, isS
         );
     }
 
+    // Рендеринг обычных информационных блоков
     return (
         <div className={className}>
             <div className={styles.icon}>{icon}</div>
@@ -93,10 +97,10 @@ const FetalMonitorShowcase = () => {
 
             <header className={styles.header}>
                 <h1 className={styles.title}>
-                    СИМУЛЯЦИЯ ФЕТАЛЬНОГО МОНИТОРА
+                    КТГ-СИМУЛЯТОР: ПРАКТИКА ИНТЕРПРЕТАЦИИ
                 </h1>
                 <p className={styles.subtitle}>
-                    Точность. Доступность. Результат.
+                    Симулятор, основанный на протоколах FIGO/NICE.
                 </p>
             </header>
             <div className={styles.bentoGrid}>
