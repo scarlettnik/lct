@@ -23,12 +23,13 @@ const ParamModal = ({ isOpen, onClose }) => {
                 <div
                     style={{
                         margin: '0',
-                        flexGrow: 1, // Растягивает контейнер на доступное пространство
+                        flexGrow: 1,
                         display: 'flex',
-                        justifyContent: 'center', // Центрирование по горизонтали
-                        alignItems: 'center',    // Центрирование по вертикали
+                        justifyContent: 'center',
+                        alignItems: 'center',
                         width: '100%',
-                        height: '100%'
+                        height: '100%',
+                        minHeight: '30vh',
                     }}
                 >
                     <ReportBlock/>

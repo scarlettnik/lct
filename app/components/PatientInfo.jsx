@@ -1,9 +1,11 @@
 import React, {useState} from "react";
-import '../panel/style.css'
+import '../panel/[id]/style.css'
 import EditPatientModal from "@/app/components/EditPatientModal";
 
-const PatientInfo = ({patient, handleSavePatientData}) => {
+const PatientInfo = ({patient}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    console.log(patient);
 
     return (<>
         <aside className="bento-box fm-patient-info">
@@ -18,19 +20,19 @@ const PatientInfo = ({patient, handleSavePatientData}) => {
                 </button>
             </header>
 
-            <p className="fm-patient-name">{patient.name}</p>
+            <p className="fm-patient-name">{patient?.name || `Фамилия Имя Отчество ${patient?.id}`}</p>
             <div className="fm-details-group">
                 <div className="fm-patient-detail"><p style={{width: '35%'}}>Паритет родов:</p> <span
-                    style={{width: '60%'}}>{patient.parity_of_births || 1}</span></div>
+                    style={{width: '60%'}}>{patient?.info?.parity || 'Нет данных'}</span></div>
                 <div className="fm-patient-detail"><p style={{width: '35%'}}>Соматические
                     заболевания: </p><span
-                    style={{width: '60%'}}>{patient.somatic_diseases || 'Здесь может быть очень много текста, нужно придумать как адекватное такое можно отображать'}</span>
+                    style={{width: '60%'}}>{patient?.info?.somatic_diseases || 'Нет данных'}</span>
                 </div>
                 <div className="fm-patient-detail"><p style={{width: '35%'}}>Течение беременности: </p><span
-                    style={{width: '60%'}}>{patient.pregnancy_course || 'Наблюдалась в ЖК с 7 недель. Течение физиологическое, без осложнений. Ранний токсикоз лёгкой степени (до 10 недель) купирован диетой. Анализы крови, мочи и скрининги в норме. Прибавка в весе за беременность: +10.5 кг. Плановые УЗИ и допплерометрия (20, 32 нед.) – без патологий.'}</span>
+                    style={{width: '60%'}}>{patient?.info?.pregnancy_course || 'Наблюдалась в ЖК с 7 недель. Течение физиологическое, без осложнений. Ранний токсикоз лёгкой степени (до 10 недель) купирован диетой. Анализы крови, мочи и скрининги в норме. Прибавка в весе за беременность: +10.5 кг. Плановые УЗИ и допплерометрия (20, 32 нед.) – без патологий.'}</span>
                 </div>
                 <div className="fm-patient-detail"><p style={{width: '35%'}}>Последняя менструация: </p> <span
-                    style={{width: '60%'}}>{patient.lmp}</span></div>
+                    style={{width: '60%'}}>{patient?.info?.last_menstrual_period}</span></div>
             </div>
 
             <div className="fm-bga-section">
@@ -45,12 +47,12 @@ const PatientInfo = ({patient, handleSavePatientData}) => {
                     </tr>
                     </thead>
                     <tbody>
-                    {patient.bloodGas.map((item, index) => (
+                    {patient?.info?.blood_gas.map((item, index) => (
                         <tr key={index}>
-                            <td>{item.parameter}</td>
-                            <td>{item.value}</td>
-                            <td>{item.unit}</td>
-                            <td>{item.isNormal ? 'В норме' : 'Не в норме'}</td>
+                            <td>{item?.name}</td>
+                            <td>{item?.value}</td>
+                            <td>{item?.unit}</td>
+                            <td>{item?.normal}</td>
                         </tr>
                     ))}
                     </tbody>
@@ -62,7 +64,6 @@ const PatientInfo = ({patient, handleSavePatientData}) => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 patientData={patient}
-                onSave={handleSavePatientData}
             />
         )}
     </>)

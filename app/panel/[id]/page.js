@@ -17,6 +17,7 @@ import ReportBlock from "@/app/components/ReportBlock";
 import ChartSelector from "@/app/components/ChartSelector";
 import PatientInfo from "@/app/components/PatientInfo";
 import useCSVData from "@/hooks/useCSVparse";
+import {useParams} from "next/navigation";
 
 ChartJS.register(
     CategoryScale,
@@ -63,32 +64,69 @@ export default function FetalMonitor() {
     const { data: heartRateData = [], loading: hrLoading } = useCSVData("/data/bpm_test.csv");
     const { data: toneData = [], loading: toneLoading } = useCSVData("/data/iterus_test.csv");
 
-    const hrChartRef = useRef(null); // ССЫЛКА НА ГРАФИК
-    const containerRef = useRef(null); // ССЫЛКА НА ОСНОВНОЙ КОНТЕЙНЕР
+    const hrChartRef = useRef(null);
+    const containerRef = useRef(null);
 
-    const [patientData, setPatientData] = useState({
-        name: "Иванова Мария Петровна",
-        doctor: "Акушер-гинеколог: Смирнова Е.В.",
-        parity_of_births: "G2 P1 (Вторая беременность, одни роды)",
-        somatic_diseases: "Хронический пиелонефрит, компенсированный",
-        pregnancy_course: "30 недель, без осложнений (плановое обследование)",
-        lmp: "15.03.2025",
-        bloodGas: [
-            { parameter: "pH", value: "7.42", unit: "", normal_range: "7.35–7.45", isNormal: true, },
-            { parameter: "pCO₂", value: "40.5", unit: "mmHg", normal_range: "35–45 mmHg", isNormal: true, },
-            { parameter: "pO₂", value: "95", unit: "mmHg", normal_range: "75–100 mmHg", isNormal: true, },
-            { parameter: "HCO₃⁻", value: "24", unit: "mmol/L", normal_range: "22–26 mEq/L", isNormal: true, },
-            { parameter: "BE", value: "1.0", unit: "mmol/L", normal_range: "−4 to +2", isNormal: true, },
-        ]
-    });
+    const params = useParams();
+    const patientId = params.id;
 
-    const handleSavePatientData = useCallback((newPatientData) => {
-        // Здесь можно добавить логику проверки или отправки на сервер
-        setPatientData(newPatientData);
-        console.log("Данные пациента обновлены:", newPatientData);
+    const [currentChartId, setCurrentChartId] = useState(null);
+    const [isPatientDataLoading, setIsPatientDataLoading] = useState(true);
+    const [patientFetchError, setPatientFetchError] = useState(null);
+
+    const [patientData, setPatientData] = useState({});
+
+    const selectChart = useCallback((chartId) => {
+        setCurrentChartId(chartId);
+        console.log(`Chart selected/updated to ID: ${chartId}`);
     }, []);
 
-    const patient = patientData;
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchPatientData = async () => {
+            setIsPatientDataLoading(true);
+            setPatientFetchError(null);
+
+            try {
+                const response = await fetch(`https://hack.nearby-project.ru/v1/patients/${patientId}`);
+
+                if (!response.ok) {
+                    throw new Error(`Ошибка HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                setPatientData(data);
+
+                if (data.examinations && data.examinations.length > 0) {
+                    setCurrentChartId(data.examinations[0].id);
+                }
+
+            } catch (error) {
+                console.error("Ошибка при получении данных пациента:", error);
+                if (isMounted) {
+                    setPatientFetchError(`Не удалось загрузить данные пациента: ${error.message}`);
+                    setPatientData(prev => ({
+                        ...prev,
+                        name: "Ошибка загрузки данных",
+                        doctor: "Проверьте ID или API"
+                    }));
+                }
+            } finally {
+                if (isMounted) {
+                    setIsPatientDataLoading(false);
+                }
+            }
+        };
+
+        fetchPatientData();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [patientId]);
+
+
     const hrAnnotations = [
         {
             id: "lateDecel",
@@ -141,7 +179,6 @@ export default function FetalMonitor() {
     const [zoomRange, setZoomRange] = useState(null);
     const [chartDisplayWidth, setChartDisplayWidth] = useState(100);
 
-    // Используем состояние для хранения выбранной аннотации
     const [selectedAnnotation, setSelectedAnnotation] = useState(null);
 
 
@@ -170,7 +207,6 @@ export default function FetalMonitor() {
     }, [hrLoading, toneLoading, xMin, xMax, zoomRange]);
 
 
-    // ОБНОВЛЕННЫЙ ОБРАБОТЧИК КЛИКА: использует setSelectedAnnotation
     const handleChartClick = useCallback((event, elements, chart) => {
         if (!chart) {
             setSelectedAnnotation(null);
@@ -182,26 +218,28 @@ export default function FetalMonitor() {
         const clickX = nativeEvent.clientX - rect.left;
         const xValue = chart.scales.x.getValueForPixel(clickX);
 
-        // Ищем аннотацию, в диапазон X которой попал клик
         const hit = allAnnotations.find(
             (a) => xValue >= a.xMin && xValue <= a.xMax
         );
 
-        // Обновляем состояние, чтобы вызвать перерисовку UI
         setSelectedAnnotation(hit);
-    }, [allAnnotations]); // Зависимость от объединенного списка аннотаций
+    }, [allAnnotations]);
 
 
-    if (hrLoading || toneLoading || zoomRange === null) {
+    if (hrLoading || toneLoading || zoomRange === null || isPatientDataLoading) {
         return (
             <div className="loading-screen">
-                Загрузка данных...
+                {patientFetchError ? (
+                    <p style={{ color: 'red' }}>{patientFetchError}</p>
+                ) : (
+                    <p>Загрузка данных...</p>
+                )}
             </div>
         );
     }
     const [graphMin, graphMax] = zoomRange;
 
-    const reportData = (() => { // Изменил на useMemo
+    const reportData = (() => {
         return { message: "Отчет по КТГ не рассчитан в демо-режиме.", severity: "info" }
     }, [sortedHR, sortedUC, graphMin, graphMax]);
 
@@ -224,7 +262,6 @@ export default function FetalMonitor() {
         },
     };
 
-    // ОБНОВЛЕННЫЕ НАСТРОЙКИ: onClick просто вызывает handleChartClick
     const createOptions = (yScaleConfig, annotations) => ({
         responsive: true,
         maintainAspectRatio: false,
@@ -293,12 +330,11 @@ export default function FetalMonitor() {
         <div className="fetal-monitor-container" ref={containerRef}>
             <header className="fm-header bento-box bento-header">
                 <h1 className="fm-title">Кардиотокография (КТГ)</h1>
-                <div className="fm-info-doctor">{patient.doctor}</div>
                 <div className="fm-info-time">{new Date().toLocaleString()}</div>
             </header>
 
             <main className="fm-main-content">
-                <PatientInfo patient={patientData} handleSavePatientData = {handleSavePatientData} />
+                <PatientInfo patient={patientData} />
 
                 <ReportBlock reportData={reportData}/>
                 <aside className="bento-box fm-chart-control-area">
@@ -325,12 +361,13 @@ export default function FetalMonitor() {
 
                 <div className="fm-store">
                     <ChartSelector
-                        count={4}
-                        currentChartId={1}
-                        selectChart={1}
+                        patient={patientData}
+                        currentChartId={currentChartId}
+                        selectChart={selectChart}
+                        data={heartRateData}
+                        loading={hrLoading || toneLoading}
                     />
                 </div>
-                {/* ОБНОВЛЕННЫЙ БЛОК ДЛЯ ОТОБРАЖЕНИЯ ИНФОРМАЦИИ */}
                 <div className='fm-predict bento-box'>
                     <h2 className="fm-subtitle">Информация по выделенной области</h2>
 

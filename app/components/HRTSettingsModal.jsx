@@ -2,54 +2,55 @@ import React, { useState, useEffect } from "react";
 import VirtualKeyboard from "./VirtualKeyBoard";
 import "../UploadModal.css";
 
-const ALERT_SOUND_PATH = "/alarm.mp3";
-
-const initialSettings = {
+const initialDefaultSettings = {
     minHRT: 60,
-    maxHRT: 100,
+    maxHRT: 160,
     volume: 80,
 };
 
-export default function HRTSettingsModal({ isOpen, onClose, currentHRT = 0 }) {
-    const [settings, setSettings] = useState(initialSettings);
-    const [isKeyboardVisible, setIsKeyboardVisible] = useState(true); // Изначально скрыта
+export default function HRTSettingsModal({
+                                             isOpen,
+                                             onClose,
+                                             currentHRT = 0,
+                                             onSave, // Функция для передачи сохраненных данных в FetalMonitor
+                                             initialMinHRT = initialDefaultSettings.minHRT,
+                                             initialMaxHRT = initialDefaultSettings.maxHRT,
+                                             initialVolume = initialDefaultSettings.volume, // 📌 Принимаем громкость
+                                         }) {
+    // 📌 Инициализация состояния настроек из props
+    const [settings, setSettings] = useState(() => ({
+        minHRT: initialMinHRT,
+        maxHRT: initialMaxHRT,
+        volume: initialVolume,
+    }));
+
+    // Эффект для инициализации состояния при открытии, если props изменились
+    useEffect(() => {
+        setSettings({
+            minHRT: initialMinHRT,
+            maxHRT: initialMaxHRT,
+            volume: initialVolume,
+        });
+    }, [initialMinHRT, initialMaxHRT, initialVolume]);
+
+
+    const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
     const [activeInput, setActiveInput] = useState(null);
     const [message, setMessage] = useState("");
-    const audioRef = React.useRef(new Audio(ALERT_SOUND_PATH));
 
-    useEffect(() => {
-        const { minHRT, maxHRT, volume } = settings;
-        audioRef.current.volume = volume / 100;
+    // ❌ УДАЛЕНА ЛОГИКА АУДИО (сирена управляется в FetalMonitor)
 
-        const isAlertCondition = currentHRT > 0 && (currentHRT < minHRT || currentHRT > maxHRT);
+    if (!isOpen) {
+        return null;
+    }
 
-        if (isAlertCondition) {
-            setMessage(`🚨 Warning! HRT (${currentHRT}) outside range [${minHRT}-${maxHRT}].`);
-            audioRef.current.loop = true;
+    // Проверка тревоги только для отображения в модалке
+    const isAlertCondition = currentHRT > 0 &&
+        (currentHRT < settings.minHRT || currentHRT > settings.maxHRT);
 
-            const playPromise = audioRef.current.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.warn("Autoplay prevented. User must interact first.", error);
-                });
-            }
-        } else {
-            setMessage("");
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        }
-
-        return () => {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        };
-    }, [currentHRT, settings]);
-
-    if (!isOpen) return null;
 
     const handleNativeInputChange = (e) => {
         const { id, value } = e.target;
-        // Фильтруем все, кроме цифр.
         const numericVal = value.replace(/[^0-9]/g, '');
 
         let finalValue = parseInt(numericVal) || 0;
@@ -59,23 +60,25 @@ export default function HRTSettingsModal({ isOpen, onClose, currentHRT = 0 }) {
 
         if (id === 'volume') {
             finalValue = Math.min(finalValue, 100);
-        }
-
-        if (isKeyboardVisible) {
-            setActiveInput(null);
+        } else {
+            finalValue = Math.max(0, Math.min(finalValue, 300));
         }
 
         setSettings(prev => ({
             ...prev,
             [id]: finalValue,
         }));
+
+        if (activeInput) {
+            setActiveInput(null);
+            setIsKeyboardVisible(false);
+        }
     };
 
     const handleKeyUpdate = (newVal) => {
         if (!activeInput) return;
 
         const numericVal = String(newVal).replace(/[^0-9]/g, '');
-
         let finalValue = parseInt(numericVal) || 0;
         let maxLength = 3;
 
@@ -83,6 +86,8 @@ export default function HRTSettingsModal({ isOpen, onClose, currentHRT = 0 }) {
 
         if (activeInput === 'volume') {
             finalValue = Math.min(finalValue, 100);
+        } else {
+            finalValue = Math.max(0, Math.min(finalValue, 300));
         }
 
         setSettings(prev => ({
@@ -101,11 +106,20 @@ export default function HRTSettingsModal({ isOpen, onClose, currentHRT = 0 }) {
     const handleSave = (e) => {
         e.preventDefault();
 
-        if (settings.minHRT >= settings.maxHRT || settings.minHRT <= 0) {
-            alert("❌ Минимальное ЧСС должно быть меньше Максимального и больше нуля.");
+        if (settings.minHRT >= settings.maxHRT) {
+            setMessage("❌ Минимальное ЧСС должно быть строго меньше Максимального.");
             return;
         }
+
+        // 📌 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Передаем все три настройки в FetalMonitor
+        if (onSave) {
+            onSave(settings.minHRT, settings.maxHRT, settings.volume);
+        }
+
+        // Очистка и закрытие
+        setActiveInput(null);
         setIsKeyboardVisible(false);
+        setMessage("");
         onClose();
     };
 
@@ -115,14 +129,25 @@ export default function HRTSettingsModal({ isOpen, onClose, currentHRT = 0 }) {
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <h2 className="modal-title">Настройки ЧСС и Звука</h2>
+                <h2 className="modal-title">Настройки Тревоги (ЧСС и Звук)</h2>
                 <button className="close-button" onClick={onClose}>&times;</button>
+
+                {/* Отображение текущего ЧСС */}
+                <div className="current-hrt-display">
+                    Текущая ЧСС: <span className={isAlertCondition ? 'alert-value' : 'normal-value'}>
+                        {currentHRT} уд/мин
+                    </span>
+                </div>
+
+                {message && <p className="alert-message">{message}</p>}
 
                 <form onSubmit={handleSave}>
                     <div className="form-group">
                         <label htmlFor="minHRT">Мин. ЧСС (уд/мин):</label>
                         <input
                             id="minHRT"
+                            type="number"
+                            inputMode="none"
                             value={settings.minHRT}
                             onChange={handleNativeInputChange}
                             onFocus={() => handleInputFocus('minHRT')}
@@ -134,6 +159,8 @@ export default function HRTSettingsModal({ isOpen, onClose, currentHRT = 0 }) {
                         <label htmlFor="maxHRT">Макс. ЧСС (уд/мин):</label>
                         <input
                             id="maxHRT"
+                            type="number"
+                            inputMode="none"
                             value={settings.maxHRT}
                             onChange={handleNativeInputChange}
                             onFocus={() => handleInputFocus('maxHRT')}
@@ -146,7 +173,7 @@ export default function HRTSettingsModal({ isOpen, onClose, currentHRT = 0 }) {
                         <input
                             id="volume"
                             type="number"
-                            inputMode="numeric"
+                            inputMode="none"
                             value={settings.volume}
                             onChange={handleNativeInputChange}
                             onFocus={() => handleInputFocus('volume')}

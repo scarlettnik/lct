@@ -1,8 +1,10 @@
-// components/BentoUserList.js
 'use client';
 
 import Link from 'next/link';
 import './styles.css';
+import useUsers from "@/app/api/Patients";
+import React, {useState} from "react";
+import EditPatientModal from "@/app/components/EditPatientModal";
 
 const ArrowRight = () => (
     <svg
@@ -20,37 +22,24 @@ const ArrowRight = () => (
     </svg>
 );
 
-const usersData = [
-    { id: 1, name: 'Анна Иванова', email: 'anna.i@example.com', role: 'Администратор' },
-    { id: 2, name: 'Пётр Сидоров', email: 'petr.s@example.com', role: 'Редактор' },
-    { id: 3, name: 'Мария Кузнецова', email: 'maria.k@example.com', role: 'Пользователь' },
-    { id: 4, name: 'Дмитрий Смирнов', email: 'dmitriy.s@example.com', role: 'Пользователь' },
-    { id: 5, name: 'Елена Васильева', email: 'elena.v@example.com', role: 'Пользователь' },
-];
-
 const UserBentoCard = ({ user, index }) => {
-    const isCompleted = index < 2;
-    const statusText = isCompleted ? 'Заполненный пользователь' : 'Не заполненный пользователь';
-
     return (
-        <Link href={`/panel`} passHref>
+        <Link href={`/panel/${user?.id}`} passHref>
             <div
-                className={`bento-card ${isCompleted ? 'status-completed' : 'status-pending'}`}
+                className={`bento-card ${user?.name ? 'status-completed' : 'status-pending'}`}
             >
                 <div className="card-info">
                     <div className="card-header">
                         <div className="user-avatar">
-                            {user.name.charAt(0)}
+                            {user?.name.charAt(0) || '0'}
                         </div>
-                        <h3 className="user-name">{user.name}</h3>
+                        <h3 className="user-name">{user?.name || `Фамилмия имя отчество ${user.id}`}</h3>
                     </div>
 
-                    <p className={`user-status ${isCompleted ? 'text-completed' : 'text-pending'}`}>
-                        {statusText}
+                    <p className={`user-status ${user?.name ? 'text-completed' : 'text-pending'}`}>
+                        {user?.name ? "Данные заполнены" : "Данные не заполнены"}
                     </p>
                 </div>
-
-                {/* Компонент стрелки справа */}
                 <div className="card-arrow-container">
                     <ArrowRight />
                 </div>
@@ -60,11 +49,62 @@ const UserBentoCard = ({ user, index }) => {
 };
 
 const BentoUserList = () => {
-    return (
+    const { users, isLoading, error, refetch } = useUsers();
+    console.log(isLoading);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handlePatientSaveSuccess = () => {
+        setIsModalOpen(false);
+        refetch();
+    };
+    if (isLoading) {
+        return (
+            <div className="bento-grid-container">
+                <h2 className="grid-title">Список пользователей</h2>
+                <div className="bento-list">
+                    <div className="spinner-container">
+                        <div className="spinner"></div>
+                    </div>
+
+                    <p className="loading-state">Загрузка пользователей...</p>
+                </div>
+            </div>
+        );
+    }
+    if (error) {
+        return (
+            <div className="bento-grid-container">
+                <h2 className="grid-title">Список пользователей</h2>
+                <div className="bento-list">
+                    <p className="error-state">Ошибка загрузки: {error.message}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (users.length === 0) {
+        return (
+            <div className="bento-grid-container">
+                <h2 className="grid-title">Список пользователей</h2>
+                <div className="bento-list">
+                    <p className="empty-state">Пользователи не найдены.</p>
+                </div>
+            </div>
+        );
+    }
+
+    return ( <>
         <div className="bento-grid-container">
             <h2 className="grid-title">Список пользователей</h2>
+            <button
+                className="edit-button"
+                style={{backgroundColor: '#007bff', padding: '8px 15px', borderRadius: '8px', marginBottom: '20px'}}
+                onClick={() => setIsModalOpen(true)}
+            >
+                Добавить пациента
+            </button>
             <div className="bento-list">
-                {usersData.map((user, index) => (
+                {users.map((user, index) => (
                     <UserBentoCard
                         key={user.id}
                         user={user}
@@ -73,6 +113,14 @@ const BentoUserList = () => {
                 ))}
             </div>
         </div>
+            {isModalOpen && (
+                <EditPatientModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    successAdd = {handlePatientSaveSuccess}
+                />
+            )}
+        </>
     );
 };
 

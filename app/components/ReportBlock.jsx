@@ -1,6 +1,6 @@
 import React from "react";
 import {generatePdfFromHtml} from "@/hooks/pdfGenerator";
-import '../panel/style.css'
+import '../panel/[id]/style.css'
 
 const ReportBlock = ({reportData}) => {
     let pathologyClass = 'path-normal';
@@ -17,7 +17,7 @@ const ReportBlock = ({reportData}) => {
     };
 
     return (
-        <div className={'bento-box fm-report-block fm-patient-info'}  ref={reportRef}>
+        <div className={'bento-box fm-report-block fm-patient-info'} style={{minWidth: '30vw !important'}} ref={reportRef}>
             <header style={{display: 'flex', justifyContent: 'space-between'}}>
                 <h2 className="fm-subtitle">Отчет</h2>
                 <button
@@ -71,16 +71,16 @@ const ReportBlock = ({reportData}) => {
             </div>
             <div className="report-metric time-metric">
                 Тахикардия:
-                <div className="time-submetric" style={{paddingLeft: '1ch'}}> умеренная (160уд): <span
+                <div className="time-submetric" style={{paddingLeft: '1ch'}}> умеренная: <span
                     className="metric-value">{reportData?.tachycardiaModerateTime} мин.</span></div>
-                <div className="time-submetric">выраженная (190уд): <span
+                <div className="time-submetric">выраженная: <span
                     className="metric-value">{reportData?.tachycardiaSevereTime} мин.</span></div>
             </div>
             <div className="report-metric time-metric">
                 Брадикадия:
-                <div className="time-submetric">умеренная (110уд): <span
+                <div className="time-submetric">умеренная: <span
                     className="metric-value">{reportData?.bradycardiaModerateTime} мин.</span></div>
-                <div className="time-submetric">выраженная (90уд): <span
+                <div className="time-submetric">выраженная: <span
                     className="metric-value">{reportData?.bradycardiaSevereTime} мин.</span></div>
             </div>
         </div>

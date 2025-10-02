@@ -2,56 +2,67 @@ import React, { useState, useRef } from "react";
 import "../UploadModal.css";
 import VirtualKeyboard from "./VirtualKeyBoard"; // Импорт клавиатуры
 
-export default function UploadModal({ isOpen, onClose }) {
+export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
     const [patientId, setPatientId] = useState("");
     const [zipFile, setZipFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState("");
-    const [isKeyboardVisible, setIsKeyboardVisible] = useState(true); // Новое состояние для клавиатуры
 
-    const inputRef = useRef(null); // Ref для поля ввода ID пациента
+    const isKeyboardVisible = true;
+
+    const inputRef = useRef(null);
 
     if (!isOpen) return null;
+
     const handlePatientIdChangeFromKeyboard = (newVal) => {
         setPatientId(newVal);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setMessage("");
+        setMessage(""); // Очищаем старое сообщение
 
         if (!patientId || !zipFile) {
             setMessage("Пожалуйста, заполните ID пациента и выберите файл.");
             return;
         }
-
-        // Скрыть клавиатуру при отправке
-        setIsKeyboardVisible(false);
-
         setIsSubmitting(true);
+
         const formData = new FormData();
-        formData.append("patient_id", patientId);
-        formData.append("zip_file", zipFile);
+        formData.append("file", zipFile, zipFile.name);
+        // Используем константу url
+        const url = `https://hack.nearby-project.ru/v1/patients/${patientId}/examinations`;
 
         try {
-            const response = await fetch("https://hack.nearby-project.ru/v1/emulation/upload", {
-                method: "POST",
-                body: formData,
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                },
+                body: formData
             });
 
             if (response.ok) {
-                setMessage("✅ Данные успешно отправлены!");
+                const successData = await response.json();
+
+                // 📌 ИЗМЕНЕНИЕ 1: Передаем successData И patientId
+                if (onUploadSuccess) {
+                    onUploadSuccess(patientId, successData); // Передаем ID пациента
+                }
+
                 setPatientId("");
                 setZipFile(null);
-                setTimeout(() => {
-                    onClose();
-                }, 1500);
+
+
             } else {
-                const errorData = await response.json();
-                setMessage(`❌ Ошибка отправки: ${errorData.message || response.statusText}`);
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = errorData.detail || "Ошибка загрузки данных на сервер.";
+                setMessage(`Ошибка: ${errorMessage}`);
+                console.error("Server error:", errorData);
             }
         } catch (error) {
-            setMessage(`❌ Сетевая ошибка: ${error.message}`);
+            console.error("Fetch error:", error);
+            setMessage("Произошла ошибка сети или сервера.");
         } finally {
             setIsSubmitting(false);
         }
@@ -68,11 +79,10 @@ export default function UploadModal({ isOpen, onClose }) {
                         <label htmlFor="patientId">Введите ID пациента:</label>
                         <input
                             id="patientId"
-                            ref={inputRef} // Привязка ref
+                            ref={inputRef}
                             type="text"
                             value={patientId}
                             onChange={(e) => setPatientId(e.target.value)}
-                            onFocus={() => setIsKeyboardVisible(true)}
                             required
                             className="input-field"
                             inputMode="none"
@@ -82,7 +92,7 @@ export default function UploadModal({ isOpen, onClose }) {
                     {isKeyboardVisible && (
                         <VirtualKeyboard
                             onKeyPress={handlePatientIdChangeFromKeyboard}
-                            onDone={() => setIsKeyboardVisible(false)}
+                            // onDone не нужен, так как клавиатура всегда видима
                             targetValue={patientId}
                         />
                     )}
@@ -96,8 +106,7 @@ export default function UploadModal({ isOpen, onClose }) {
                             onChange={(e) => setZipFile(e.target.files[0])}
                             required
                             className="input-file"
-                            // При фокусировке на другом поле скрываем клавиатуру
-                            onFocus={() => setIsKeyboardVisible(false)}
+                            // Убрали onFocus
                         />
                     </div>
                     <div className="button-group">

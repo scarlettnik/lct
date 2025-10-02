@@ -81,12 +81,6 @@
     resize: vertical;
 }
 
-/* Стили для таблицы BGA внутри формы */
-.bga-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Метка | Поле ввода */
-    gap: 10px 15px;
-}
 
 .bga-label {
     margin-top: 0;
