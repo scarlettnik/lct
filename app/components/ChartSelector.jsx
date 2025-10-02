@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState, useCallback } from "react";
 import "../ChartSelector.css";
 
 const formatTimeMMSS = (sec) => {
@@ -51,7 +51,6 @@ const groupAndFormatCharts = (chartList) => {
 };
 
 const ChartSelector = ({ selectChart, data, loading, patient }) => {
-    // В selected храним: { examinationId, partIndex, recordId }
     const [selected, setSelected] = useState(null);
 
     const groupedCharts = useMemo(() => {
@@ -81,14 +80,7 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
         };
     }, [data, loading]);
 
-    useEffect(() => {
-        if (!patient?.id || !patient.examinations?.length) return;
-
-        const examinationId = patient.examinations[0]?.id;
-        if (!examinationId) return;
-    }, [patient?.id, patient?.examinations]);
-
-    const handleChartClick = async (examinationId, partIndex, recordId) => {
+    const handleChartClick = useCallback(async (examinationId, partIndex, recordId) => {
         const selectedPart = { examinationId, partIndex, recordId };
         setSelected(selectedPart);
 
@@ -96,33 +88,48 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
         let jsonExam = null;
 
         try {
-            // 1. Fetch Part Data
             const resPart = await fetch(
                 `https://hack.nearby-project.ru/v1/patients/${patient.id}/examinations/${examinationId}/part/${partIndex}`
             );
-            jsonPart = await resPart.json(); // Assign data
-            console.log(`📊 Данные части #${partIndex}:`, jsonPart);
+            jsonPart = await resPart.json();
+            console.log(`Данные части #${partIndex}:`, jsonPart);
 
-            // 2. Fetch Examination Metadata
             const resExam = await fetch(
                 `https://hack.nearby-project.ru/v1/patients/${patient.id}/examinations/${examinationId}`
             );
-            jsonExam = await resExam.json(); // Assign data
-            console.log("🧾 Полное описание исследования:", jsonExam);
+            jsonExam = await resExam.json();
+            console.log("Полное описание исследования:", jsonExam);
 
         } catch (err) {
             console.error("Ошибка при загрузке данных:", err);
-            // Optionally call selectChart with null data on error
         }
 
-        // 3. 🚀 NEW: Call the prop function, passing the fetched data
         if (typeof selectChart === "function") {
-            // Pass the primary selection object, the Part Data, and the Exam Metadata
             selectChart(selectedPart, jsonPart, jsonExam);
         } else {
             console.error("selectChart prop is not a function or is missing!");
         }
-    };
+    }, [patient.id, selectChart]);
+
+    useEffect(() => {
+        if (!patient?.id || groupedCharts.length === 0) return;
+
+        const firstGroup = groupedCharts[0];
+        const firstRecord = firstGroup.records[0];
+
+        const examinationId = firstRecord.id;
+        const partIndex = 1;
+        const recordId = firstRecord.id;
+
+        const isAlreadySelected =
+            selected?.examinationId === examinationId &&
+            selected?.partIndex === partIndex;
+
+        if (!isAlreadySelected) {
+            handleChartClick(examinationId, partIndex, recordId);
+        }
+
+    }, [patient?.id, groupedCharts, selected, handleChartClick]);
 
     return (
         <div className="bento-box chart-selector-container">
@@ -133,7 +140,7 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
                     <p>Нет доступных данных об исследованиях для этого пациента.</p>
                 </div>
             ) : (
-                <div className="chart-selector-scrollable-content" style={{height:'100vh', }}>
+                <div className="chart-selector-scrollable-content" style={{maxHeight:'100vh', }}>
                     <ul className="chart-selector-groups-list">
                         {groupedCharts.map((group) => (
                             <li key={group.date} className="chart-selector-group-item">
@@ -144,7 +151,6 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
                                         <div key={record.id} className="record-list-item">
                                             {record.metadata?.part_count &&
                                                 Array.from({ length: record.metadata.part_count }, (_, i) => {
-                                                    // Проверка на то, активна ли эта часть:
                                                     const isActive =
                                                         selected?.examinationId === record.id &&
                                                         selected?.partIndex === i + 1;
@@ -152,7 +158,6 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
                                                     return (
                                                         <div
                                                             key={i}
-                                                            // Добавляем класс 'active-green' для зелёного выделения
                                                             className={`record-part ${isActive ? "active-green" : ""}`}
                                                             onClick={() => handleChartClick(record.id, i + 1, record.id)}
                                                         >

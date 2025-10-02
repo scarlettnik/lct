@@ -16,7 +16,6 @@ import annotationPlugin from 'chartjs-plugin-annotation';
 import ReportBlock from "@/app/components/ReportBlock";
 import ChartSelector from "@/app/components/ChartSelector";
 import PatientInfo from "@/app/components/PatientInfo";
-// import useCSVData from "@/hooks/useCSVparse"; // Убран
 import {useParams} from "next/navigation";
 
 ChartJS.register(
@@ -37,7 +36,6 @@ const formatTimeMMSS = (sec) => {
     return `${m.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`;
 };
 
-// ... (ChartControl component remains unchanged) ...
 const ChartControl = ({ label, currentWidth, setWidth }) => {
     const minWidth = 100;
     const maxWidth = 400;
@@ -61,7 +59,6 @@ const ChartControl = ({ label, currentWidth, setWidth }) => {
     )
 }
 
-// Функция для трансформации данных
 const transformChartData = (jsonArr) => {
     if (!Array.isArray(jsonArr)) return [];
 
@@ -75,7 +72,6 @@ const transformChartData = (jsonArr) => {
 
 
 export default function FetalMonitor() {
-    // hrLoading и toneLoading теперь могут быть просто false, так как данных из CSV нет
     const hrLoading = false;
     const toneLoading = false;
 
@@ -114,25 +110,26 @@ export default function FetalMonitor() {
         console.log(`Chart selected/updated to ID: ${chartId}`);
     }, []);
 
-
-    useEffect(() => {
+    const fetchPatientData = useCallback(async (isInitialLoad = false) => {
         let isMounted = true;
 
-        const fetchPatientData = async () => {
+        if (isInitialLoad) {
             setIsPatientDataLoading(true);
-            setPatientFetchError(null);
+        }
+        setPatientFetchError(null);
 
-            try {
-                const response = await fetch(`https://hack.nearby-project.ru/v1/patients/${patientId}`);
+        try {
+            const response = await fetch(`https://hack.nearby-project.ru/v1/patients/${patientId}`);
 
-                if (!response.ok) {
-                    throw new Error(`Ошибка HTTP: ${response.status}`);
-                }
+            if (!response.ok) {
+                throw new Error(`Ошибка HTTP: ${response.status}`);
+            }
 
-                const data = await response.json();
+            const data = await response.json();
+
+            if (isMounted) {
                 setPatientData(data);
-
-                if (data.examinations && data.examinations.length > 0) {
+                if (isInitialLoad && data.examinations && data.examinations.length > 0) {
                     const firstExam = data.examinations[0];
                     setCurrentChartId(firstExam.id);
                     setSelectedExaminationData({
@@ -140,25 +137,24 @@ export default function FetalMonitor() {
                         exam: firstExam
                     });
                 }
-
-            } catch (error) {
-                console.error("Ошибка при получении данных пациента:", error);
-                if (isMounted) {
-                    setPatientFetchError(`Не удалось загрузить данные пациента: ${error.message}`);
-                }
-            } finally {
-                if (isMounted) {
-                    setIsPatientDataLoading(false);
-                }
             }
-        };
 
-        fetchPatientData();
-
-        return () => {
-            isMounted = false;
-        };
+        } catch (error) {
+            console.error("Ошибка при получении данных пациента:", error);
+            if (isMounted) {
+                setPatientFetchError(`Не удалось загрузить данные пациента: ${error.message}`);
+            }
+        } finally {
+            if (isMounted && isInitialLoad) {
+                setIsPatientDataLoading(false);
+            }
+        }
     }, [patientId]);
+
+
+    useEffect(() => {
+        fetchPatientData(true);
+    }, [fetchPatientData]);
 
 
     const hrAnnotations = [
@@ -234,7 +230,6 @@ export default function FetalMonitor() {
     }, [heartRateData, toneData]);
 
     useEffect(() => {
-        // Условие для сброса zoomRange при загрузке новых данных
         if (xMax > xMin && (zoomRange === null || zoomRange[1] !== xMax)) {
             setZoomRange([xMin, xMax]);
         }
@@ -259,13 +254,10 @@ export default function FetalMonitor() {
         setSelectedAnnotation(hit);
     }, [allAnnotations]);
 
-
-    // --- НОВАЯ ЛОГИКА: Обработка загрузки и отсутствия выбора ---
     const isExaminationSelected = currentChartId !== null;
     const hasHRData = sortedHR.length > 0;
     const hasUCData = sortedUC.length > 0;
 
-    // 1. Полный экран загрузки/ошибки (для данных пациента)
     if (patientFetchError) {
         return (
             <div className="loading-screen">
@@ -282,13 +274,11 @@ export default function FetalMonitor() {
         );
     }
 
-    // 2. Определение текста-заглушки для области графиков
     let chartPlaceholderText = null;
 
     if (!isExaminationSelected) {
         chartPlaceholderText = "Выберите исследование";
     } else if (zoomRange === null) {
-        // zoomRange === null означает, что данные загружены, но графики еще не инициализированы/масштабированы
         chartPlaceholderText = "Загрузка данных графика...";
     }
 
@@ -296,10 +286,7 @@ export default function FetalMonitor() {
         <p className="chart-status-text">{chartPlaceholderText}</p>
     ) : null;
 
-    // -----------------------------------------------------------
-
-
-    const [graphMin, graphMax] = zoomRange || [xMin, xMax]; // Fallback to calculated min/max
+    const [graphMin, graphMax] = zoomRange || [xMin, xMax];
 
     const reportData = (() => {
         return { message: "Отчет по КТГ не рассчитан в демо-режиме.", severity: "info" }
@@ -388,6 +375,8 @@ export default function FetalMonitor() {
         }],
     };
 
+    console.log(patientData)
+
     return (
         <div className="fetal-monitor-container" ref={containerRef}>
             <header className="fm-header bento-box bento-header">
@@ -396,7 +385,7 @@ export default function FetalMonitor() {
             </header>
 
             <main className="fm-main-content">
-                <PatientInfo patient={patientData} />
+                <PatientInfo patient={patientData} onDataUpdate={() => fetchPatientData(false)} />
 
                 <ReportBlock reportData={reportData}/>
                 <aside className="bento-box fm-chart-control-area">
@@ -420,7 +409,7 @@ export default function FetalMonitor() {
                 </div>
 
                 <div className="bento-box fm-graph fm-graph-uc">
-                <div className="chart-wrapper" style={{width: `${chartDisplayWidth}%`}}>
+                    <div className="chart-wrapper" style={{width: `${chartDisplayWidth}%`}}>
                         {chartPlaceholder ? chartPlaceholder : (
                             hasUCData ?
                                 <>

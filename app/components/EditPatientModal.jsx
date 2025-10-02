@@ -28,7 +28,8 @@ const formatDataForApi = (data) => {
     };
 };
 
-const EditPatientModal = ({ isOpen, onClose, patientData, successAdd }) => {
+// Принимаем onSuccess
+const EditPatientModal = ({ isOpen, onClose, patientData, successAdd, onSuccess }) => {
     const [formData, setFormData] = useState(null);
     const params = useParams();
 
@@ -107,15 +108,20 @@ const EditPatientModal = ({ isOpen, onClose, patientData, successAdd }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(apiData),
             });
-            if (!params.id) {
-                successAdd();
-            }
+
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Ошибка API (${response.status}): ${errorText || 'Неизвестная ошибка'}`);
             }
 
-            onClose();
+            if (isUpdate && onSuccess) {
+                onSuccess();
+            } else if (!isUpdate && successAdd) {
+                successAdd();
+            } else {
+                onClose();
+            }
+
         } catch (error) {
             console.error(`Ошибка при сохранении:`, error);
             alert(`Не удалось сохранить данные: ${error.message}`);

@@ -1,12 +1,17 @@
+'use client'
 import React, {useState} from "react";
 import '../panel/[id]/style.css'
 import EditPatientModal from "@/app/components/EditPatientModal";
 
-const PatientInfo = ({patient}) => {
+const PatientInfo = ({patient, onDataUpdate}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    console.log(patient);
-
+    const handleModalClose = () => {
+        setIsModalOpen(false);
+        if (onDataUpdate) {
+            onDataUpdate();
+        }
+    }
     return (<>
         <aside className="bento-box fm-patient-info">
             <header className="fm-patient-header" style={{display: 'flex', justifyContent: 'space-between'}}>
@@ -47,7 +52,7 @@ const PatientInfo = ({patient}) => {
                     </tr>
                     </thead>
                     <tbody>
-                    {patient?.info?.blood_gas.map((item, index) => (
+                    {patient?.info?.blood_gas?.map((item, index) => (
                         <tr key={index}>
                             <td>{item?.name}</td>
                             <td>{item?.value}</td>
@@ -62,6 +67,7 @@ const PatientInfo = ({patient}) => {
         {isModalOpen && (
             <EditPatientModal
                 isOpen={isModalOpen}
+                onSuccess={handleModalClose}
                 onClose={() => setIsModalOpen(false)}
                 patientData={patient}
             />
