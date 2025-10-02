@@ -94,6 +94,7 @@ export default function FetalMonitor() {
     const [toneData, setToneData] = useState([]);
     const [latestTime, setLatestTime] = useState(0);
 
+    // Изменение 2: analysisStats теперь может содержать prediction
     const [analysisStats, setAnalysisStats] = useState(null);
 
     const socketRef = useRef(null);
@@ -119,7 +120,7 @@ export default function FetalMonitor() {
     }, []);
 
     const handleSettingsSave = (newMin, newMax, newVolume) => {
-        setHrtThresholds({ min: newMin, max: newMax, volume: newVolume });
+        setHrtThresholds({ min: newMin, max: newMax, maxVolume: newVolume });
         setIsDangerModalOpen(false);
     };
 
@@ -181,11 +182,21 @@ export default function FetalMonitor() {
             const msg = safeParseJSON(event.data);
             if (!msg) return;
 
-            // 💡 ИЗМЕНЕНИЕ 2.1: Обработка сообщения "stats"
+            // 💡 ИЗМЕНЕНИЕ 1: Отключение автоматического открытия модального окна
+            // 💡 ИЗМЕНЕНИЕ 2: Обработка сообщения "stats"
             if (msg.stats) {
-                console.log("Получены данные статистики:", msg.stats); // Вывод в консоль
-                setAnalysisStats(msg.stats); // Сохранение в состоянии
-                setParamModalOpen(true); // Открытие модального окна параметров
+                // Вывод ВСЕХ полученных данных статистики в консоль
+                console.log("Получены данные статистики:", msg.stats);
+
+                // Обработка нового поля prediction
+                const receivedStats = {
+                    ...msg.stats,
+                    prediction: msg.prediction // Добавляем поле prediction
+                };
+
+                setAnalysisStats(receivedStats); // Сохранение в состоянии
+
+                // setParamModalOpen(true); // <-- ЭТО СТРОКА УДАЛЕНА ИЛИ ЗАКОММЕНТИРОВАНА
                 return;
             }
 
@@ -241,7 +252,7 @@ export default function FetalMonitor() {
             setToneData([]);
             setLatestTime(0);
 
-            // 💡 ИЗМЕНЕНИЕ 2.2: Сброс статистики при новой загрузке
+            // 💡 Сброс статистики при новой загрузке
             setAnalysisStats(null);
 
             setWsUrl(newWsUrl);
@@ -260,7 +271,7 @@ export default function FetalMonitor() {
         setToneData([]);
         setLatestTime(0);
 
-        // 💡 ИЗМЕНЕНИЕ 2.3: Сброс статистики при переходе к следующей части
+        // 💡 Сброс статистики при переходе к следующей части
         setAnalysisStats(null);
 
         // Закрытие модалки
@@ -315,7 +326,10 @@ export default function FetalMonitor() {
                 <footer className="fm-footer">
                     <button className="fm-button" onClick={() => setIsDangerModalOpen(true)}>Параметры тревоги</button>
                     <button className="fm-button" onClick={() => setIsModalOpen(true)}>Загрузить данные</button>
-                    <button className="fm-button" onClick={() => setParamModalOpen(true)}>Анализ</button>
+                    {/* Кнопка "Анализ" теперь открывает модальное окно с сохраненными данными */}
+                    <button className="fm-button" onClick={() => setParamModalOpen(true)} disabled={!analysisStats}>
+                        Анализ {analysisStats ? "✅" : "..."}
+                    </button>
                 </footer>
             </div>
 

@@ -73,10 +73,8 @@ const transformChartData = (jsonArr) => {
 
 export default function FetalMonitor() {
     // --- ИНИЦИАЛИЗАЦИЯ РОУТЕРА И ПАРАМЕТРОВ ---
-    const router = useRouter(); // Инициализируем useRouter из next/navigation
+    const router = useRouter();
     const params = useParams();
-
-    // ПРИМЕЧАНИЕ: Имя параметра 'id' должно соответствовать имени папки в роуте (например, app/fetal-monitor/[id]/page.js)
     const patientId = params.id;
 
     const hrLoading = false;
@@ -94,6 +92,8 @@ export default function FetalMonitor() {
         part: { data: { bpm: [], uterus: [] } },
         exam: null
     });
+    // 💡 НОВОЕ СОСТОЯНИЕ: для хранения полного описания выбранного исследования
+    const [selectedExaminationDetails, setSelectedExaminationDetails] = useState(null);
 
     const heartRateData = useMemo(() => {
         const bpmData = selectedExaminationData.part?.data?.bpm;
@@ -110,7 +110,7 @@ export default function FetalMonitor() {
         setCurrentChartId(chartId);
         const safePartData = partData?.data ? partData : { data: { bpm: [], uterus: [] } };
         setSelectedExaminationData({ part: safePartData, exam: examData });
-        console.log(`Chart selected/updated to ID: ${chartId}`);
+        setSelectedExaminationDetails(partData);
     }, []);
 
     const fetchPatientData = useCallback(async (isInitialLoad = false) => {
@@ -121,7 +121,6 @@ export default function FetalMonitor() {
         }
         setPatientFetchError(null);
 
-        // Проверяем, что ID пациента доступен перед выполнением fetch
         if (!patientId) {
             console.warn("patientId не определен. Пропуск загрузки данных.");
             if (isMounted && isInitialLoad) setIsPatientDataLoading(false);
@@ -299,6 +298,7 @@ export default function FetalMonitor() {
     const [graphMin, graphMax] = zoomRange || [xMin, xMax];
 
     const reportData = (() => {
+        // Здесь можно было бы рассчитать отчет, но используем заглушку
         return { message: "Отчет по КТГ не рассчитан в демо-режиме.", severity: "info" }
     }, [sortedHR, sortedUC, graphMin, graphMax]);
 
@@ -338,7 +338,6 @@ export default function FetalMonitor() {
             y: yScaleConfig,
         },
     });
-
 
     const hrOptions = createOptions(
         {
@@ -385,7 +384,6 @@ export default function FetalMonitor() {
         }],
     };
 
-    console.log(patientData)
 
     const handleConnect = () => {
         if (patientData?.ongoing_examination_id) {
@@ -399,12 +397,26 @@ export default function FetalMonitor() {
         }
     };
 
+    // 💡 ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ для вывода метаданных
+    const renderMetadata = (metadata) => {
+        if (!metadata) return <p>Метаданные отсутствуют.</p>;
+
+        return (
+            <div style={{ fontSize: '0.9em' }}>
+                {Object.entries(metadata).map(([key, value]) => (
+                    <p key={key} style={{ margin: '4px 0', borderBottom: '1px dotted #ccc' }}>
+                        <strong style={{ textTransform: 'capitalize' }}>{key.replace(/_/g, ' ')}:</strong> {value !== null && value !== undefined ? String(value) : 'N/A'}
+                    </p>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <div className="fetal-monitor-container" ref={containerRef}>
             <header className="fm-header bento-box bento-header">
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                     <h1 className="fm-title">Кардиотокография (КТГ)</h1>
-                    {/* Кнопка с исправленным обработчиком onClick */}
                     {patientData?.ongoing_examination_id && <button  onClick={handleConnect} style={{padding: '15px', borderRadius: '8px', marginLeft: '20px', backgroundColor: 'rgb(0, 123, 255)', color: 'white', border: 'none', cursor: 'pointer'}}>Подключиться к транслиции</button>}
                 </div>
                 <div className="fm-info-time">{new Date().toLocaleString()}</div>
@@ -413,7 +425,7 @@ export default function FetalMonitor() {
             <main className="fm-main-content">
                 <PatientInfo patient={patientData} onDataUpdate={() => fetchPatientData(false)} />
 
-                <ReportBlock reportData={reportData}/>
+                <ReportBlock reportData={selectedExaminationDetails}/>
                 <aside className="bento-box fm-chart-control-area">
                     <ChartControl
                         label="Управление масштабом"
@@ -456,6 +468,7 @@ export default function FetalMonitor() {
                         loading={hrLoading || toneLoading}
                     />
                 </div>
+                {/* 💡 ШАГ 2: ВЫВОД ДАННЫХ В БЛОК FM-PREDICT */}
                 <div className='fm-predict bento-box'>
                     <h2 className="fm-subtitle">Информация по выделенной области</h2>
 
@@ -469,6 +482,18 @@ export default function FetalMonitor() {
                             Чтобы увидеть детальное описание, кликните на выделенную розовым область на
                             графиках.
                         </p>
+                    )}
+
+                    <hr style={{margin: '15px 0'}} />
+                    <h2 className="fm-subtitle" style={{marginBottom: '10px'}}>Детали выбранной записи</h2>
+                    {selectedExaminationDetails ? (
+                        <>
+                            <p><strong>ID исследования:</strong> {selectedExaminationDetails.id}</p>
+                            <p><strong>Метаданные:</strong></p>
+                            {renderMetadata(selectedExaminationDetails.metadata)}
+                        </>
+                    ) : (
+                        <p>Детали исследования появятся после выбора записи в левой панели.</p>
                     )}
                 </div>
             </main>
