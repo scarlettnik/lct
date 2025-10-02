@@ -114,22 +114,19 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
     useEffect(() => {
         if (!patient?.id || groupedCharts.length === 0) return;
 
-        const firstGroup = groupedCharts[0];
-        const firstRecord = firstGroup.records[0];
+        // Автовыбор только если ничего еще не выбрано
+        if (!selected) {
+            const firstGroup = groupedCharts[0];
+            const firstRecord = firstGroup.records[0];
 
-        const examinationId = firstRecord.id;
-        const partIndex = 1;
-        const recordId = firstRecord.id;
+            const examinationId = firstRecord.id;
+            const partIndex = 1;
+            const recordId = firstRecord.id;
 
-        const isAlreadySelected =
-            selected?.examinationId === examinationId &&
-            selected?.partIndex === partIndex;
-
-        if (!isAlreadySelected) {
             handleChartClick(examinationId, partIndex, recordId);
         }
+    }, [patient?.id, groupedCharts]); // ❌ убрал selected и handleChartClick
 
-    }, [patient?.id, groupedCharts, selected, handleChartClick]);
 
     return (
         <div className="bento-box chart-selector-container">

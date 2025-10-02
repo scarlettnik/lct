@@ -12,10 +12,10 @@ import {
 import { Line } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
 import "./style.css";
-// Предполагаемые пути для импорта
 import UploadModal from "@/app/components/UploadData";
 import ParamModal from "@/app/components/ParamModal";
 import HRTSettingsModal from "@/app/components/HRTSettingsModal";
+import NextPartModal from "@/app/components/GoToNetx";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, annotationPlugin);
 
@@ -34,7 +34,6 @@ const safeParseJSON = (raw) => {
     }
 };
 
-// ... (generateECGOptions и Clock остаются без изменений)
 const generateECGOptions = (yMin, yMax, currentTime) => {
     const xMin = Math.max(0, (currentTime || 0) - 90);
     const xMax = xMin + 90;
@@ -89,12 +88,13 @@ function Clock() {
     }, []);
     return <span>{timeStr}</span>;
 }
-// ... (конец вспомогательных функций)
 
 export default function FetalMonitor() {
     const [heartRateData, setHeartRateData] = useState([]);
     const [toneData, setToneData] = useState([]);
     const [latestTime, setLatestTime] = useState(0);
+
+    const [analysisStats, setAnalysisStats] = useState(null);
 
     const socketRef = useRef(null);
     const bufferSeconds = 10 * 60;
@@ -103,24 +103,20 @@ export default function FetalMonitor() {
     const [isModalOpen, setIsModalOpen] = useState(true);
     const [paramModalOpen, setParamModalOpen] = useState(false);
     const [isDangerModalOpen, setIsDangerModalOpen] = useState(false);
+    const [isNextModalOpen, setIsNextModalOpen] = useState(false);
 
     const [hrtThresholds, setHrtThresholds] = useState({ min: 60, max: 160, volume: 80 });
-
     const audioRef = useRef(null);
 
-    // ----------------------------------------------------
-    // 📌 useEffect 1: ИНИЦИАЛИЗАЦИЯ Audio (только на клиенте)
-    // ----------------------------------------------------
     useEffect(() => {
-        if (typeof window !== 'undefined' && !audioRef.current) {
+        if (typeof window !== "undefined" && !audioRef.current) {
             try {
                 audioRef.current = new Audio(ALERT_SOUND_PATH);
             } catch (e) {
-                console.error("Failed to create Audio object in client environment:", e);
+                console.error("Failed to create Audio object:", e);
             }
         }
     }, []);
-
 
     const handleSettingsSave = (newMin, newMax, newVolume) => {
         setHrtThresholds({ min: newMin, max: newMax, volume: newVolume });
@@ -130,27 +126,22 @@ export default function FetalMonitor() {
     const currentHR = heartRateData.length ? Math.round(heartRateData[heartRateData.length - 1].y) : 0;
     const currentUC = toneData.length ? Math.round(toneData[toneData.length - 1].y) : 0;
 
-    // ПРОВЕРКА ТРЕВОГИ
     const isHRTAlert = currentHR > 0 &&
         (currentHR < hrtThresholds.min || currentHR > hrtThresholds.max);
 
-    // ----------------------------------------------------
-    // 📌 useEffect 2: УПРАВЛЕНИЕ АУДИО-СИГНАЛОМ (СИРЕНА)
-    // ----------------------------------------------------
     useEffect(() => {
         const audio = audioRef.current;
-        if (!audio) return; // Выходим, если Audio не инициализировано
+        if (!audio) return;
 
         const { volume } = hrtThresholds;
-
         audio.volume = volume / 100;
         audio.loop = true;
 
         if (isHRTAlert) {
             const playPromise = audio.play();
             if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.warn("Autoplay prevented for alarm. User interaction required.", error);
+                playPromise.catch(err => {
+                    console.warn("Autoplay prevented for alarm:", err);
                 });
             }
         } else {
@@ -166,14 +157,10 @@ export default function FetalMonitor() {
         };
     }, [isHRTAlert, hrtThresholds.volume]);
 
-
-    // ----------------------------------------------------
-    // useEffect 3: УПРАВЛЕНИЕ WebSocket (логика получения данных)
-    // ----------------------------------------------------
     useEffect(() => {
         if (!wsUrl) {
             if (socketRef.current) {
-                try { socketRef.current.close(); } catch (e) { /* ignore */ }
+                try { socketRef.current.close(); } catch {}
                 socketRef.current = null;
             }
             return;
@@ -188,11 +175,24 @@ export default function FetalMonitor() {
         }
         socketRef.current = ws;
 
-        ws.onopen = () => { console.log("WS connected:", wsUrl); };
+        ws.onopen = () => console.log("WS connected:", wsUrl);
 
         ws.onmessage = (event) => {
             const msg = safeParseJSON(event.data);
             if (!msg) return;
+
+            // 💡 ИЗМЕНЕНИЕ 2.1: Обработка сообщения "stats"
+            if (msg.stats) {
+                console.log("Получены данные статистики:", msg.stats); // Вывод в консоль
+                setAnalysisStats(msg.stats); // Сохранение в состоянии
+                setParamModalOpen(true); // Открытие модального окна параметров
+                return;
+            }
+
+            if (msg.status === "waiting-for-next-command") {
+                setIsNextModalOpen(true);
+                return;
+            }
 
             if (msg.plot && Array.isArray(msg.plot.point)) {
                 const channel = msg.plot.channel;
@@ -222,19 +222,15 @@ export default function FetalMonitor() {
             }
         };
 
-        ws.onerror = (e) => { console.error("WS error:", e); };
-        ws.onclose = (ev) => { console.log("WS closed", ev.code, ev.reason); };
-
+        ws.onerror = (e) => console.error("WS error:", e);
+        ws.onclose = (ev) => console.log("WS closed", ev.code, ev.reason);
 
         return () => {
-            try { ws.close(); } catch (e) { /* ignore */ }
+            try { ws.close(); } catch {}
             socketRef.current = null;
         };
     }, [wsUrl]);
 
-    // ----------------------------------------------------
-    // Обработчик загрузки данных (остается прежним)
-    // ----------------------------------------------------
     const handleUploadSuccess = (patientId, serverData) => {
         setIsModalOpen(false);
         const examinationId = serverData?.id;
@@ -244,18 +240,43 @@ export default function FetalMonitor() {
             setHeartRateData([]);
             setToneData([]);
             setLatestTime(0);
+
+            // 💡 ИЗМЕНЕНИЕ 2.2: Сброс статистики при новой загрузке
+            setAnalysisStats(null);
+
             setWsUrl(newWsUrl);
         } else {
-            alert(`Загрузка завершена, но не удалось получить ID экзамена для запуска мониторинга.`);
+            alert("Загрузка завершена, но не удалось получить ID экзамена для запуска мониторинга.");
         }
     };
 
-    // ... (useMemo для графиков остается прежним)
-    const heartRateChartData = useMemo(() => ({ datasets: [{ label: "BPM", data: heartRateData, borderColor: "green", backgroundColor: "rgba(0,0,0,0)", pointRadius: 0, },], }), [heartRateData]);
-    const toneChartData = useMemo(() => ({ datasets: [{ label: "Tone", data: toneData, borderColor: "blue", backgroundColor: "rgba(0,0,0,0)", pointRadius: 0, },], }), [toneData]);
+    const handleNextPart = () => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({ command: "next-part" }));
+        }
+
+        // 🔥 Очистка графиков
+        setHeartRateData([]);
+        setToneData([]);
+        setLatestTime(0);
+
+        // 💡 ИЗМЕНЕНИЕ 2.3: Сброс статистики при переходе к следующей части
+        setAnalysisStats(null);
+
+        // Закрытие модалки
+        setIsNextModalOpen(false);
+    };
+
+    const heartRateChartData = useMemo(() => ({
+        datasets: [{ label: "BPM", data: heartRateData, borderColor: "green", backgroundColor: "rgba(0,0,0,0)", pointRadius: 0 }],
+    }), [heartRateData]);
+
+    const toneChartData = useMemo(() => ({
+        datasets: [{ label: "Tone", data: toneData, borderColor: "blue", backgroundColor: "rgba(0,0,0,0)", pointRadius: 0 }],
+    }), [toneData]);
+
     const heartRateOptions = useMemo(() => generateECGOptions(70, 230, latestTime), [latestTime]);
     const toneOptions = useMemo(() => generateECGOptions(0, 100, latestTime), [latestTime]);
-
 
     return (
         <>
@@ -278,15 +299,11 @@ export default function FetalMonitor() {
                     <div className="fm-sidebar">
                         <div className="fm-value">
                             <div>US1</div>
-                            <div className="fm-value-number lime">
-                                {currentHR}
-                            </div>
+                            <div className="fm-value-number lime">{currentHR}</div>
                         </div>
                         <div className="fm-value">
                             <div>US2</div>
-                            <div  className="fm-value-number lime">
-                                {currentHR}
-                            </div>
+                            <div className="fm-value-number lime">{currentHR}</div>
                         </div>
                         <div className="fm-value">
                             <div>UC</div>
@@ -311,6 +328,7 @@ export default function FetalMonitor() {
             <ParamModal
                 isOpen={paramModalOpen}
                 onClose={() => setParamModalOpen(false)}
+                analysisStats={analysisStats}
             />
 
             <HRTSettingsModal
@@ -321,6 +339,11 @@ export default function FetalMonitor() {
                 currentHRT={currentHR}
                 onClose={() => setIsDangerModalOpen(false)}
                 onSave={handleSettingsSave}
+            />
+
+            <NextPartModal
+                isOpen={isNextModalOpen}
+                onNext={handleNextPart}
             />
         </>
     );

@@ -16,7 +16,7 @@ import annotationPlugin from 'chartjs-plugin-annotation';
 import ReportBlock from "@/app/components/ReportBlock";
 import ChartSelector from "@/app/components/ChartSelector";
 import PatientInfo from "@/app/components/PatientInfo";
-import {useParams} from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 ChartJS.register(
     CategoryScale,
@@ -72,14 +72,17 @@ const transformChartData = (jsonArr) => {
 
 
 export default function FetalMonitor() {
+    // --- ИНИЦИАЛИЗАЦИЯ РОУТЕРА И ПАРАМЕТРОВ ---
+    const router = useRouter(); // Инициализируем useRouter из next/navigation
+    const params = useParams();
+
+    // ПРИМЕЧАНИЕ: Имя параметра 'id' должно соответствовать имени папки в роуте (например, app/fetal-monitor/[id]/page.js)
+    const patientId = params.id;
+
     const hrLoading = false;
     const toneLoading = false;
-
     const hrChartRef = useRef(null);
     const containerRef = useRef(null);
-
-    const params = useParams();
-    const patientId = params.id;
 
     const [isPatientDataLoading, setIsPatientDataLoading] = useState(true);
     const [patientFetchError, setPatientFetchError] = useState(null);
@@ -117,6 +120,13 @@ export default function FetalMonitor() {
             setIsPatientDataLoading(true);
         }
         setPatientFetchError(null);
+
+        // Проверяем, что ID пациента доступен перед выполнением fetch
+        if (!patientId) {
+            console.warn("patientId не определен. Пропуск загрузки данных.");
+            if (isMounted && isInitialLoad) setIsPatientDataLoading(false);
+            return;
+        }
 
         try {
             const response = await fetch(`https://hack.nearby-project.ru/v1/patients/${patientId}`);
@@ -377,10 +387,26 @@ export default function FetalMonitor() {
 
     console.log(patientData)
 
+    const handleConnect = () => {
+        if (patientData?.ongoing_examination_id) {
+            const examinationId = patientData.ongoing_examination_id;
+
+            const patientIdToPass = patientData.id;
+
+            const url = `/streaming/${patientIdToPass}/${examinationId}`;
+
+            router.push(url);
+        }
+    };
+
     return (
         <div className="fetal-monitor-container" ref={containerRef}>
             <header className="fm-header bento-box bento-header">
-                <h1 className="fm-title">Кардиотокография (КТГ)</h1>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <h1 className="fm-title">Кардиотокография (КТГ)</h1>
+                    {/* Кнопка с исправленным обработчиком onClick */}
+                    {patientData?.ongoing_examination_id && <button  onClick={handleConnect} style={{padding: '15px', borderRadius: '8px', marginLeft: '20px', backgroundColor: 'rgb(0, 123, 255)', color: 'white', border: 'none', cursor: 'pointer'}}>Подключиться к транслиции</button>}
+                </div>
                 <div className="fm-info-time">{new Date().toLocaleString()}</div>
             </header>
 

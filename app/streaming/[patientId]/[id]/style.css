@@ -1,0 +1,83 @@
+.fm-container {
+    background-color: white;
+    color: black;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.fm-header {
+    background-color: white;
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+    color: black;
+}
+
+.fm-main {
+    display: flex;
+    flex: 1;
+}
+
+.fm-graphs {
+    flex: 4;
+    display: flex;
+    flex-direction: column;
+}
+
+.fm-graph {
+    flex: 1;
+    background-size: 20px 20px;
+}
+
+.fm-sidebar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    background-color: white;
+    border-left: 1px solid #333;
+    color: white;
+}
+
+.fm-value {
+    text-align: center;
+}
+
+.fm-value-number {
+    font-size: 5rem;
+}
+
+.fm-value-number.lime {
+    color: #007c00;
+}
+
+.fm-value-number.red {
+    color: blue;
+}
+
+.fm-footer {
+    background-color: white;
+    padding: 0.5rem 1rem;
+    border-top: 1px solid #333;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.fm-button {
+    border-radius: 8px;
+
+    padding: 20px;
+    background: #258505;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.fm-button:hover {
+    background: #444;
+}
