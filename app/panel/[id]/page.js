@@ -155,9 +155,23 @@ export default function FetalMonitor() {
         }
     }, [patientId]);
 
+    const [freeComment, setFreeComment] = useState('Ожидание загрузки комментария...');
+    const [isCommentLoading, setIsCommentLoading] = useState(true);
+
     useEffect(() => {
         fetchPatientData(true);
     }, [fetchPatientData]);
+
+    useEffect(() => {
+        // 💡 Замените эту логику на ваш реальный GET-запрос
+        const initialValue = "Общее состояние: все среднее. Требуется усиленный мониторинг.";
+
+        setTimeout(() => {
+            setFreeComment(initialValue);
+            setIsCommentLoading(false);
+        }, 500);
+    }, []);
+
 
     // 🔥 Динамические аннотации из выбранных данных
     const dynamicAnnotations = useMemo(() => {
@@ -372,6 +386,29 @@ export default function FetalMonitor() {
         );
     };
 
+
+// Функция сохранения (PUT/POST)
+    const handleCommentSave = () => {
+        // 💡 Здесь должна быть логика сохранения (например, fetch или axios)
+        console.log("Сохранение нового комментария:", freeComment);
+
+        // Добавьте здесь ваш PUT/POST запрос. Например:
+        /*
+        fetch('/api/save-comment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comment: freeComment, examId: yourExamId })
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Комментарий сохранен!');
+            }
+        });
+        */
+
+        alert('Комментарий сохранен: ' + freeComment);
+    };
+
     return (
         <div className="fetal-monitor-container" ref={containerRef}>
             <header className="fm-header bento-box bento-header">
@@ -383,7 +420,7 @@ export default function FetalMonitor() {
             </header>
 
             <main className="fm-main-content">
-                <PatientInfo patient={patientData} onDataUpdate={() => fetchPatientData(false)} />
+                <PatientInfo patient={patientData} onDataUpdate={() => fetchPatientData(false)}/>
 
                 <ReportBlock reportData={selectedExaminationDetails}/>
                 <aside className="bento-box fm-chart-control-area">
@@ -412,7 +449,8 @@ export default function FetalMonitor() {
                                 <>
                                     <p>Частота маточных сокращений</p>
                                     <Line options={ucOptions} data={ucDataset}/></> :
-                                <p className="chart-status-text">Для просмотра графика выберите исследование, обработка может занять несколько секунд</p>
+                                <p className="chart-status-text">Для просмотра графика выберите исследование, обработка
+                                    может занять несколько секунд</p>
                         )}
                     </div>
                 </div>
@@ -427,6 +465,80 @@ export default function FetalMonitor() {
                     />
                 </div>
 
+                <div className="bento-box fm-result" style={{marginTop: '-16px', marginBottom: '20px'}}>
+                    <div style={{padding: '10px', borderRadius: '5px'}}>
+
+                        <h3 className="fm-subtitle">РЕКОМЕНДАЦИИ:</h3>
+                        <ul style={{listStyleType: 'disc', marginLeft: '20px'}}>
+                            <li>Усилить мониторинг (КТГ каждые 15-30 мин)</li>
+                            <li>Оценить температуру, АД, ЧСС матери</li>
+                            <li>Рассмотреть отмену/снижение окситоцина</li>
+                            <li>Изменить положение тела матери</li>
+                            <li>Контролировать кровопотерю и длительность родов</li>
+                        </ul>
+                        <br/>
+                        <h3 className="fm-subtitle">ЗОНЫ
+                            РИСКА:</h3>
+                        <p>Высокая вероятность поздней децелерации в ближайшие 10 мин (p = 0.56)</p>
+                        <br/>
+                        <h3 className="fm-subtitle">ЧТО В
+                            НОРМЕ:</h3>
+                        <ul style={{listStyleType: 'disc', marginLeft: '20px'}}>
+                            <li>Базальный ритм в норме (110-160 уд/мин)</li>
+                            <li>Акселерации присутствуют — признак отсутствия гипоксии</li>
+                            <li>Поздние децелерации отсутствуют</li>
+                            <li>Вариабельные децелерации редкие или отсутствуют</li>
+                            <li>Частота сокращений в пределах нормы (3-5 за 10 мин)</li>
+                        </ul>
+
+                    </div>
+                </div>
+
+                <div className='bento-box fm-comment'>
+                    <div style={{
+                        padding: '10px',
+                        borderRadius: '8px',
+                    }}>
+                        <h4 style={{margin: '0 0 10px 0', color: '#333'}}>Комментарий врача</h4>
+
+                        <textarea
+                            value={isCommentLoading ? 'Загрузка...' : freeComment}
+                            onChange={(e) => setFreeComment(e.target.value)}
+                            disabled={isCommentLoading}
+                            rows={4}
+                            placeholder="Введите здесь свой комментарий..."
+                            style={{
+                                color: 'black',
+                                overflowY: 'auto',
+                                width: '100%',
+                                padding: '8px',
+                                borderRadius: '5px',
+                                border: '1px solid #ccc',
+                                fontSize: '14px',
+                                resize: 'none',
+                                backgroundColor: 'white',
+                            }}
+                        />
+
+                        <button
+                            onClick={handleCommentSave}
+                            disabled={isCommentLoading}
+                            style={{
+                                float: 'left',
+                                marginTop: '10px',
+                                padding: '8px 15px',
+                                borderRadius: '5px',
+                                border: 'none',
+                                backgroundColor: isCommentLoading ? '#ccc' : '#007bff',
+                                color: 'white',
+                                cursor: isCommentLoading ? 'not-allowed' : 'pointer',
+                                transition: 'background-color 0.2s'
+                            }}
+                        >
+                            Сохранить комментарий
+                        </button>
+                    </div>
+                </div>
                 <div className='fm-predict bento-box'>
                     <h2 className="fm-subtitle">Информация по выделенной области</h2>
 
@@ -442,7 +554,7 @@ export default function FetalMonitor() {
                         </p>
                     )}
 
-                    <hr style={{margin: '15px 0'}} />
+                    <hr style={{margin: '15px 0'}}/>
                     <h2 className="fm-subtitle" style={{marginBottom: '10px'}}>Детали выбранной записи</h2>
                     {selectedExaminationDetails ? (
                         <>
@@ -454,6 +566,13 @@ export default function FetalMonitor() {
                         <p>Детали исследования появятся после выбора записи в левой панели.</p>
                     )}
                 </div>
+
+                <button className='bento-box but fm-install-but'>
+                        Скачать полное исследование
+                </button>
+                <button className='bento-box but fm-install-but2'>
+                        Скачать полное исследование
+                </button>
             </main>
         </div>
     );

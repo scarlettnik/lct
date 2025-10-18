@@ -1,0 +1,151 @@
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f7f9fc;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    flex-shrink: 0;
+}
+
+.modal-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 30px;
+    cursor: pointer;
+    color: #999;
+    transition: color 0.2s;
+}
+
+.close-button:hover {
+    color: #555;
+    transform: rotate(3deg);
+}
+
+.fm-subtitle {
+    font-size: 20px;
+    font-weight: 500;
+    color: #007bff;
+    margin: 20px 0 15px;
+    padding: 0 30px;
+}
+
+/* Контейнер для всех метрик */
+.report-container {
+    padding: 0 30px 30px;
+    overflow-y: auto;
+}
+
+/* Общий стиль для каждой основной метрики */
+.report-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 30px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 16px;
+    color: #444;
+}
+
+.report-metric:last-of-type {
+    border-bottom: none;
+}
+
+/* Выделение значений метрик */
+.metric-value {
+    font-weight: 700;
+    color: #000000;
+    min-width: 60px; /* Фиксированная минимальная ширина для выравнивания */
+    text-align: right;
+    margin-left: 10px;
+}
+
+/* ==================================== */
+/* 4. СТИЛИ ДЛЯ ВЛОЖЕННЫХ МЕТРИК */
+/* ==================================== */
+
+/* Подметрики (Децелерации) */
+.report-submetric {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 30px 8px 50px; /* Сдвиг вправо для иерархии */
+    font-size: 15px;
+    color: #666;
+    background-color: #fafafa;
+    border-bottom: 1px dashed #eee;
+}
+
+.report-submetric .metric-value {
+    font-weight: 600;
+    color: #333;
+}
+
+/* Стили для метрик времени (Тахикардия/Брадикадия) */
+.time-metric {
+    flex-direction: column; /* Метки времени идут в столбик */
+    align-items: flex-start;
+    padding-bottom: 0;
+}
+
+.time-submetric {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 5px 0;
+    font-size: 15px;
+    color: #555;
+    padding-left: 30px; /* Отступ для субметрик */
+}
+
+.time-submetric:last-child {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* ==================================== */
+/* 5. СТАТУС ПАТОЛОГИИ (ЦВЕТОВОЕ ВЫДЕЛЕНИЕ) */
+/* ==================================== */
+
+.report-pathology-status {
+    padding: 15px 30px;
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 2px solid #ddd;
+    border-bottom: 2px solid #ddd;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.pathology-label {
+    color: #333;
+}
+
+.pathology-value {
+    padding: 5px 15px;
+    border-radius: 8px;
+    color: black;
+    font-weight: 700;
+}
+
+.pathology-value.normal {
+    background-color: #28a745;
+}
+
+.pathology-value.suspicious {
+    background-color: #ffc107;
+}
+
+.pathology-value.pathological {
+    background-color: #dc3545; /* Красный */
+}

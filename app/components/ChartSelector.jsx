@@ -129,7 +129,7 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
 
 
     return (
-        <div className="bento-box chart-selector-container">
+        <div className="bento-box chart-selector-container" style={{maxHeight:'80vh'}}>
             <h2 className="fm-subtitle chart-selector-title">Выбор КТГ записи</h2>
 
             {groupedCharts.length === 0 ? (
@@ -137,7 +137,7 @@ const ChartSelector = ({ selectChart, data, loading, patient }) => {
                     <p>Нет доступных данных об исследованиях для этого пациента.</p>
                 </div>
             ) : (
-                <div className="chart-selector-scrollable-content" style={{maxHeight:'100vh', }}>
+                <div className="chart-selector-scrollable-content">
                     <ul className="chart-selector-groups-list">
                         {groupedCharts.map((group) => (
                             <li key={group.date} className="chart-selector-group-item">

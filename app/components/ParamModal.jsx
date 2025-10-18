@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../Modal.css';
+import '../Param.css'
 
 const ParamModal = ({ isOpen, onClose, analysisStats }) => {
     const secondsToMinutes = (seconds) => {
@@ -14,7 +15,7 @@ const ParamModal = ({ isOpen, onClose, analysisStats }) => {
         lateDecels: analysisStats?.late_deceleration_count,
         earlyDecels: analysisStats?.early_deceleration_count,
         variableDecels: analysisStats?.variable_deceleration_count,
-        pathologyStatus: analysisStats?.condition || "Нормальное", // Используем "Нормальное" по умолчанию
+        pathologyStatus: analysisStats?.condition || "Нормальное",
         tachycardiaModerateTime: secondsToMinutes(analysisStats?.mild_tachycardia_seconds || 0),
         tachycardiaSevereTime: secondsToMinutes(analysisStats?.severe_tachycardia_seconds || 0),
         bradycardiaModerateTime: secondsToMinutes(analysisStats?.mild_bradycardia_seconds || 0),
@@ -78,11 +79,11 @@ const ParamModal = ({ isOpen, onClose, analysisStats }) => {
 
                         <div className={`report-pathology-status`}>
                             <span className="pathology-label">Статус:</span>
-                            <span className={`pathology-value `}>{reportData.pathologyStatus}</span>
+                            <span className={`pathology-value `}>{reportData.pathologyStatus || 'Норма'}</span>
                         </div>
                         <div className="report-metric time-metric">
                             Тахикардия:
-                            <div className="time-submetric" style={{paddingLeft: '1ch'}}> умеренная: <span
+                            <div className="time-submetric"> умеренная: <span
                                 className="metric-value">{reportData.tachycardiaModerateTime} мин.</span></div>
                             <div className="time-submetric">выраженная: <span
                                 className="metric-value">{reportData.tachycardiaSevereTime} мин.</span></div>

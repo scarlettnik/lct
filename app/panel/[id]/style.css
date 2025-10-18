@@ -77,6 +77,33 @@
     border-radius: 25px;
 }
 
+.fm-result {
+    background-color: white;
+    grid-area: 5 / 1 / 8 / 4;
+}
+.fm-comment {
+    margin-top: -16px;
+    background-color: white;
+    grid-area: 5 / 4 / 6 / 7;
+}
+
+.fm-install-but {
+    background-color: white;
+    grid-area: 6 / 4 / 7 / 7;
+}
+
+.but {
+    color: white;
+    font-size: 20px;
+    font-weight: 500;
+    background-color: rgba(0, 123, 255, 0.71);
+}
+
+.fm-install-but2 {
+    grid-area: 7 / 4 / 8 / 7;
+    margin-bottom: 20px;
+}
+
 .fm-current-readings {
     grid-area: 2 / 1 / 3 / 2; /* R2 C1 */
     display: flex;

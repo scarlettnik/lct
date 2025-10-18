@@ -17,14 +17,12 @@ export default function HRTSettingsModal({
                                              initialMaxHRT = initialDefaultSettings.maxHRT,
                                              initialVolume = initialDefaultSettings.volume, // 📌 Принимаем громкость
                                          }) {
-    // 📌 Инициализация состояния настроек из props
     const [settings, setSettings] = useState(() => ({
         minHRT: initialMinHRT,
         maxHRT: initialMaxHRT,
         volume: initialVolume,
     }));
 
-    // Эффект для инициализации состояния при открытии, если props изменились
     useEffect(() => {
         setSettings({
             minHRT: initialMinHRT,
@@ -38,13 +36,10 @@ export default function HRTSettingsModal({
     const [activeInput, setActiveInput] = useState(null);
     const [message, setMessage] = useState("");
 
-    // ❌ УДАЛЕНА ЛОГИКА АУДИО (сирена управляется в FetalMonitor)
-
     if (!isOpen) {
         return null;
     }
 
-    // Проверка тревоги только для отображения в модалке
     const isAlertCondition = currentHRT > 0 &&
         (currentHRT < settings.minHRT || currentHRT > settings.maxHRT);
 
@@ -111,12 +106,10 @@ export default function HRTSettingsModal({
             return;
         }
 
-        // 📌 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Передаем все три настройки в FetalMonitor
         if (onSave) {
             onSave(settings.minHRT, settings.maxHRT, settings.volume);
         }
 
-        // Очистка и закрытие
         setActiveInput(null);
         setIsKeyboardVisible(false);
         setMessage("");
@@ -132,12 +125,12 @@ export default function HRTSettingsModal({
                 <h2 className="modal-title">Настройки Тревоги (ЧСС и Звук)</h2>
                 <button className="close-button" onClick={onClose}>&times;</button>
 
-                {/* Отображение текущего ЧСС */}
-                <div className="current-hrt-display">
-                    Текущая ЧСС: <span className={isAlertCondition ? 'alert-value' : 'normal-value'}>
-                        {currentHRT} уд/мин
-                    </span>
-                </div>
+                {/*/!* Отображение текущего ЧСС *!/*/}
+                {/*<div className="current-hrt-display">*/}
+                {/*    Текущая ЧСС: <span className={isAlertCondition ? 'alert-value' : 'normal-value'}>*/}
+                {/*        {currentHRT} уд/мин*/}
+                {/*    </span>*/}
+                {/*</div>*/}
 
                 {message && <p className="alert-message">{message}</p>}
 

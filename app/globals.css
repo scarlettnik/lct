@@ -28,6 +28,11 @@ a {
   text-decoration: none;
 }
 
+textarea {
+  background-color: white !important;
+  transition: background-color 0.3s;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
