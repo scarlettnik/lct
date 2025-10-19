@@ -31,7 +31,7 @@ const UserBentoCard = ({ user, index }) => {
                 <div className="card-info">
                     <div className="card-header">
                         <div className="user-avatar">
-                            {user?.name.charAt(0) || '0'}
+                            {user?.name?.charAt(0) || '0'}
                         </div>
                         <h3 className="user-name">{user?.name || `Фамилмия имя отчество ${user.id}`}</h3>
                     </div>
@@ -40,8 +40,20 @@ const UserBentoCard = ({ user, index }) => {
                         {user?.name ? "Данные заполнены" : "Данные не заполнены"}
                     </p>
                 </div>
+                {user.misc_data.unread && <div style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: (user?.misc_data?.overall_state === "требуется внимание")
+                        ? 'yellow'
+                        : user?.misc_data?.overall_state === "стабильное состояние"
+                            ? 'green'
+                            : 'red'
+                }}>
+
+                </div>}
                 <div className="card-arrow-container">
-                    <ArrowRight />
+                    <ArrowRight/>
                 </div>
             </div>
         </Link>
@@ -49,7 +61,7 @@ const UserBentoCard = ({ user, index }) => {
 };
 
 const BentoUserList = () => {
-    const { users, isLoading, error, refetch } = useUsers();
+    const {users, isLoading, error, refetch} = useUsers();
     console.log(isLoading);
     const [isModalOpen, setIsModalOpen] = useState(false);
 

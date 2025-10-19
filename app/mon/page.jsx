@@ -16,6 +16,7 @@ import UploadModal from "@/app/components/UploadData";
 import ParamModal from "@/app/components/ParamModal";
 import HRTSettingsModal from "@/app/components/HRTSettingsModal";
 import NextPartModal from "@/app/components/GoToNetx";
+import MonInfo from "@/app/components/MonInfo";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, annotationPlugin);
 
@@ -32,7 +33,6 @@ const safeParseJSON = (raw) => {
     }
 };
 
-// 🔹 Генерация опций графика
 const generateOptions = (yMin, yMax, xMin, xMax, annotations = {}) => ({
     responsive: true,
     maintainAspectRatio: false,
@@ -73,7 +73,6 @@ const generateOptions = (yMin, yMax, xMin, xMax, annotations = {}) => ({
     },
 });
 
-// 🔹 Формируем аннотации для интервалов
 const makeBoxAnnotations = (intervals) =>
     Object.fromEntries(
         intervals.map((a, i) => [
@@ -82,10 +81,9 @@ const makeBoxAnnotations = (intervals) =>
                 type: "box",
                 xMin: a.start,
                 xMax: a.end,
-                // ИСПРАВЛЕННОЕ МЕСТО: Добавлено yScaleID и скорректированы yMin/yMax
-                yMin: '0%',         // Используем проценты для привязки к границам области построения
-                yMax: '100%',       // Используем проценты для привязки к границам области построения
-                yScaleID: 'y',      // ОБЯЗАТЕЛЬНО: Указываем ID оси Y ('y' - дефолтный ID)
+                yMin: '0%',
+                yMax: '100%',
+                yScaleID: 'y',
 
                 backgroundColor: "rgba(255, 99, 132, 0.25)",
                 borderColor: "rgba(255, 99, 132, 0.8)",
@@ -120,6 +118,11 @@ export default function FetalMonitor() {
     const [latestTime, setLatestTime] = useState(0);
     const [analysisStats, setAnalysisStats] = useState(null);
     const [intervals, setIntervals] = useState([]);
+    const [prediction, setPrediction] = useState([]);
+    const [patientId, setPatientId] = useState(null);
+    const [patInfo, setPatInfo] = useState(false);
+    const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+
 
     const socketRef = useRef(null);
     const bufferSeconds = 600;
@@ -135,7 +138,6 @@ export default function FetalMonitor() {
     const [viewStart, setViewStart] = useState(0);
     const viewDuration = 90;
 
-    // Звук тревоги
     useEffect(() => {
         if (typeof window !== "undefined" && !audioRef.current) {
             audioRef.current = new Audio(ALERT_SOUND_PATH);
@@ -155,7 +157,7 @@ export default function FetalMonitor() {
 
     useEffect(() => {
         const audio = audioRef.current;
-        if (!audio) return;
+        if (!audio || !isSoundEnabled) return;
         audio.volume = hrtThresholds.volume / 100;
         audio.loop = true;
 
@@ -171,7 +173,10 @@ export default function FetalMonitor() {
         };
     }, [isHRTAlert, hrtThresholds.volume]);
 
-    // WebSocket
+    useEffect(() => {
+        setViewStart(Math.max(0, latestTime - viewDuration));
+    }, [latestTime]);
+
     useEffect(() => {
         if (!wsUrl) return;
         const ws = new WebSocket(wsUrl);
@@ -182,7 +187,6 @@ export default function FetalMonitor() {
             const msg = safeParseJSON(event.data);
             if (!msg) return;
 
-            // 🔸 Интервалы
             if (msg.interval) {
                 console.log("Получено сообщение об интервале:", msg.interval);
                 setIntervals((prev) => {
@@ -195,6 +199,11 @@ export default function FetalMonitor() {
                     return [...prev, newInt];
                 });
                 return;
+            }
+
+            if (msg.prediction) {
+                console.log(msg.prediction)
+                setPrediction(msg.prediction);
             }
 
             if (msg.stats) {
@@ -234,13 +243,16 @@ export default function FetalMonitor() {
         setIsModalOpen(false);
         const examId = serverData?.id;
         if (!examId) return alert("Не удалось получить ID обследования");
-
+        setPatientId(patientId);
+        console.log("Patient ID:", patientId);
         const newWsUrl = `wss://hack.nearby-project.ru/v1/patients/${patientId}/examinations/${examId}/emulation/start`;
         setWsUrl(newWsUrl);
         setHeartRateData([]);
         setToneData([]);
         setIntervals([]);
         setLatestTime(0);
+        setViewStart(0);
+        setAnalysisStats(null);
     };
 
     const handleNextPart = () => {
@@ -249,12 +261,28 @@ export default function FetalMonitor() {
         setToneData([]);
         setIntervals([]);
         setIsNextModalOpen(false);
+        setAnalysisStats(null);
+    };
+
+    const handleScrollBack = () => {
+        setViewStart((prev) => Math.max(0, prev - viewDuration / 3));
     };
 
     const annotations = makeBoxAnnotations(intervals);
 
     const xMin = viewStart;
     const xMax = viewStart + viewDuration;
+
+    const lastInterval = useMemo(() => {
+        if (intervals.length === 0) return null;
+        return intervals[intervals.length - 1];
+    }, [intervals]);
+
+    useEffect(() => {
+        if (lastInterval) {
+            console.log("Последний интервал (для отладки):", lastInterval);
+        }
+    }, [lastInterval]);
 
     const heartRateChartData = useMemo(
         () => ({
@@ -297,19 +325,19 @@ export default function FetalMonitor() {
 
     return (
         <>
-            <div className="fm-container">
+            <div style={{color: 'black'}} className="fm-container">
                 <div className="fm-header">
                     <span>MONITORING MODE</span>
-                    <span><Clock /></span>
+                    <span><Clock/></span>
                 </div>
 
                 <div className="fm-main">
                     <div className="fm-graphs">
-                        <div className="fm-graph" style={{ height: 220 }}>
-                            <Line data={heartRateChartData} options={heartRateOptions} />
+                        <div className="fm-graph" style={{height: 220}}>
+                            <Line data={heartRateChartData} options={heartRateOptions}/>
                         </div>
-                        <div className="fm-graph" style={{ height: 220 }}>
-                            <Line data={toneChartData} options={toneOptions} />
+                        <div className="fm-graph" style={{height: 220}}>
+                            <Line data={toneChartData} options={toneOptions}/>
                         </div>
                     </div>
 
@@ -322,20 +350,59 @@ export default function FetalMonitor() {
                             <div>UC</div>
                             <div className="fm-value-number red">{currentUC}</div>
                         </div>
+
+                        <div style={{width: '90%'}} className="fm-analysis-info">
+                            <p style={{fontWeight: 'bolder'}}>Информаиция о последнем подозрительном участке</p>
+                            {intervals.length > 0 ? (
+                                <>
+                                    <div className="fm-analysis-item">
+                                        <div className="fm-analysis-label">Продолжитетельность:</div>
+                                        <div
+                                            className="fm-analysis-value">{Math.round(Math.abs(lastInterval?.end - lastInterval?.start))} сек
+                                        </div>
+                                    </div>
+                                    <div className="fm-analysis-item">
+                                        <div className="fm-analysis-label">Информация</div>
+                                        <div className="fm-analysis-value">{lastInterval?.message}</div>
+                                    </div>
+                                </>
+                            ) : (
+                                <p>Подозрительных моментов не обнаружено</p>
+                            )}
+                        </div>
+
+
+                        <div style={{width: '90%'}} className="fm-analysis-info">
+                            <p style={{fontWeight: 'bolder'}}>Предсказание</p>
+                            {prediction.messages ? (
+                                <>
+                                    {prediction?.messages?.map((msg, index) => (
+                                        <p key={index}>{msg}</p>
+                                    ))}
+                                </>
+                            ) : (
+                                <p>Пока нет информации. Появляется после первой минуты исследования</p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Прокрутка */}
-                <div className="fm-scroll-controls" style={{ textAlign: "center", margin: "10px" }}>
-                    <button onClick={() => setViewStart(Math.max(0, viewStart - 30))}>◀ Назад 30 c</button>
-                    <button onClick={() => setViewStart(viewStart + 30)}>Вперёд 30 c ▶</button>
-                </div>
 
                 <footer className="fm-footer">
-                    <button onClick={() => setIsDangerModalOpen(true)}>Параметры тревоги</button>
-                    <button onClick={() => setIsModalOpen(true)}>Загрузить данные</button>
-                    <button onClick={() => setParamModalOpen(true)} disabled={!analysisStats}>
-                        Анализ
+                    <button style={{padding: '10px', borderRadius: '8px'}}
+                            onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+                    >
+                        {isSoundEnabled ? "Выключить звук тревоги" : "Включить звук тревоги"}
+                    </button>
+                    <button style={{padding: '10px', borderRadius: '8px'}}
+                            onClick={() => setIsDangerModalOpen(true)}>Параметры тревоги
+                    </button>
+                    <button style={{padding: '10px', borderRadius: '8px'}} onClick={() => setPatInfo(true)}>Информация о
+                        пациенте
+                    </button>
+                    <button style={{padding: '10px', borderRadius: '8px'}} onClick={() => setParamModalOpen(true)}
+                            disabled={!analysisStats}>
+                        Статистическиц анализ
                     </button>
                 </footer>
             </div>
@@ -351,7 +418,11 @@ export default function FetalMonitor() {
                 onClose={() => setParamModalOpen(false)}
                 analysisStats={analysisStats}
             />
-
+            <MonInfo
+                isOpen={patInfo}
+                onClose={() => setPatInfo(false)}
+                patientId={patientId}
+            />
             <HRTSettingsModal
                 isOpen={isDangerModalOpen}
                 initialMinHRT={hrtThresholds.min}

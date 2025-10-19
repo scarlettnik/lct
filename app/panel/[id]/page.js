@@ -155,6 +155,44 @@ export default function FetalMonitor() {
         }
     }, [patientId]);
 
+    useEffect(() => {
+        if (patientData && patientData.id && patientData.misc_data?.unread) {
+            const patchUnreadStatus = async () => {
+                try {
+                    const response = await fetch(`https://hack.nearby-project.ru/v1/patients/${patientData.id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            misc_data: {
+                                unread: false
+                            }
+                        })
+                    });
+
+                    if (!response.ok) {
+                        console.warn(`Не удалось обновить статус 'unread' для ${patientData.id}: ${response.status}`);
+                    }
+
+                    // Обновляем локальное состояние, чтобы избежать повторных запросов
+                    setPatientData(prevData => ({
+                        ...prevData,
+                        misc_data: {
+                            ...prevData.misc_data,
+                            unread: false
+                        }
+                    }));
+
+                } catch (error) {
+                    console.error("Ошибка при отправке PATCH-запроса для unread:", error);
+                }
+            };
+
+            patchUnreadStatus();
+        }
+    }, [patientData.id, patientData.misc_data?.unread]); // Зависит от ID и текущего статуса unread
+
     const [freeComment, setFreeComment] = useState('Ожидание загрузки комментария...');
     const [isCommentLoading, setIsCommentLoading] = useState(true);
 
@@ -387,6 +425,7 @@ export default function FetalMonitor() {
     };
 
 
+
 // Функция сохранения (PUT/POST)
     const handleCommentSave = () => {
         // 💡 Здесь должна быть логика сохранения (например, fetch или axios)
@@ -408,6 +447,8 @@ export default function FetalMonitor() {
 
         alert('Комментарий сохранен: ' + freeComment);
     };
+
+    console.log(patientData)
 
     return (
         <div className="fetal-monitor-container" ref={containerRef}>
@@ -505,7 +546,7 @@ export default function FetalMonitor() {
                             value={isCommentLoading ? 'Загрузка...' : freeComment}
                             onChange={(e) => setFreeComment(e.target.value)}
                             disabled={isCommentLoading}
-                            rows={4}
+                            rows={6}
                             placeholder="Введите здесь свой комментарий..."
                             style={{
                                 color: 'black',

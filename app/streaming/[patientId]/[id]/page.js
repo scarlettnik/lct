@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import {
@@ -14,7 +14,9 @@ import annotationPlugin from "chartjs-plugin-annotation";
 import "./style.css";
 import ParamModal from "@/app/components/ParamModal";
 import HRTSettingsModal from "@/app/components/HRTSettingsModal";
-import { useParams } from "next/navigation";
+import NextPartModal from "@/app/components/GoToNetx";
+import MonInfo from "@/app/components/MonInfo";
+import {useParams} from "next/navigation";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, annotationPlugin);
 
@@ -23,9 +25,7 @@ const ALERT_SOUND_PATH = "/alarm.mp3";
 const safeParseJSON = (raw) => {
     try {
         let parsed = JSON.parse(raw);
-        if (typeof parsed === "string") {
-            parsed = JSON.parse(parsed);
-        }
+        if (typeof parsed === "string") parsed = JSON.parse(parsed);
         return parsed;
     } catch (e) {
         console.warn("safeParseJSON failed:", e, raw);
@@ -33,51 +33,73 @@ const safeParseJSON = (raw) => {
     }
 };
 
-const generateECGOptions = (yMin, yMax, currentTime) => {
-    const xMin = Math.max(0, (currentTime || 0) - 90);
-    const xMax = xMin + 90;
-
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: { enabled: false },
-        },
-        scales: {
-            x: {
-                type: "linear",
-                display: true,
-                min: xMin,
-                max: xMax,
-                ticks: {
-                    color: "black",
-                    stepSize: 3,
-                    callback: (value) => {
-                        const minutes = Math.floor(value / 60);
-                        const seconds = Math.floor(value % 60);
-                        return `${minutes.toString().padStart(2, "0")}:${seconds
-                            .toString()
-                            .padStart(2, "0")}`;
-                    },
+const generateOptions = (yMin, yMax, xMin, xMax, annotations = {}) => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false },
+        annotation: { annotations },
+    },
+    scales: {
+        x: {
+            type: "linear",
+            display: true,
+            min: xMin,
+            max: xMax,
+            ticks: {
+                color: "black",
+                stepSize: 3,
+                callback: (value) => {
+                    const m = Math.floor(value / 60);
+                    const s = Math.floor(value % 60);
+                    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
                 },
-                grid: { color: "rgba(0, 0, 0, 0.3)" },
             },
-            y: {
-                display: true,
-                min: yMin,
-                max: yMax,
-                ticks: { color: "black", stepSize: 10 },
-                grid: { color: "rgba(0, 0, 0, 0.2)" },
+            grid: { color: "rgba(0,0,0,0.3)" },
+        },
+        y: {
+            display: true,
+            min: yMin,
+            max: yMax,
+            ticks: { color: "black", stepSize: 10 },
+            grid: { color: "rgba(0,0,0,0.2)" },
+        },
+    },
+    elements: {
+        line: { borderWidth: 2, tension: 0 },
+        point: { radius: 0 },
+    },
+});
+
+const makeBoxAnnotations = (intervals) =>
+    Object.fromEntries(
+        intervals.map((a, i) => [
+            `interval-${i}`,
+            {
+                type: "box",
+                xMin: a.start,
+                xMax: a.end,
+                yMin: '0%',
+                yMax: '100%',
+                yScaleID: 'y',
+
+                backgroundColor: "rgba(255, 99, 132, 0.25)",
+                borderColor: "rgba(255, 99, 132, 0.8)",
+                borderWidth: 1,
+                drawTime: "beforeDatasetsDraw",
+                label: {
+                    display: !!a.message,
+                    content: a.message || "",
+                    position: "start",
+                    color: "black",
+                    backgroundColor: "rgba(255,255,255,0.8)",
+                    font: { size: 10 },
+                },
             },
-        },
-        elements: {
-            line: { borderWidth: 2, tension: 0 },
-            point: { radius: 0 },
-        },
-    };
-};
+        ])
+    );
 
 function Clock() {
     const [timeStr, setTimeStr] = useState("");
@@ -94,40 +116,48 @@ export default function FetalMonitor() {
     const [heartRateData, setHeartRateData] = useState([]);
     const [toneData, setToneData] = useState([]);
     const [latestTime, setLatestTime] = useState(0);
-
-    const [historyLoaded, setHistoryLoaded] = useState(false);
+    const [analysisStats, setAnalysisStats] = useState(null);
+    const [intervals, setIntervals] = useState([]);
+    const [prediction, setPrediction] = useState([]);
+    const [patientId, setPatientId] = useState(null);
+    const [patInfo, setPatInfo] = useState(false);
+    const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+    const param = useParams(); // Get parameters from URL
+    const [isNext, setIsNext] = useState(false)
 
     const socketRef = useRef(null);
-    const bufferSeconds = 10 * 60;
+    const bufferSeconds = 600;
 
-    const [isModalOpen, setIsModalOpen] = useState(true);
     const [paramModalOpen, setParamModalOpen] = useState(false);
     const [isDangerModalOpen, setIsDangerModalOpen] = useState(false);
-
-    const [hrtThresholds, setHrtThresholds] = useState({
-        min: 60,
-        max: 160,
-        volume: 80,
-    });
-
+    const [isNextModalOpen, setIsNextModalOpen] = useState(false);
+    const [hrtThresholds, setHrtThresholds] = useState({ min: 60, max: 160, volume: 80 });
     const audioRef = useRef(null);
 
-    const param = useParams();
+    const [viewStart, setViewStart] = useState(0);
+    const viewDuration = 90;
+
+    const isInitialLoadRef = useRef(true);
+
+    const handleNextPart = () => {
+        setHeartRateData([]);
+        setToneData([]);
+        setIntervals([]);
+        setAnalysisStats(null);
+    };
+    useEffect(() => {
+        if (isNextModalOpen) {
+            handleNextPart();
+        }
+    }, [isNextModalOpen]);
+
+
 
     useEffect(() => {
         if (typeof window !== "undefined" && !audioRef.current) {
-            try {
-                audioRef.current = new Audio(ALERT_SOUND_PATH);
-            } catch (e) {
-                console.error("Failed to create Audio object:", e);
-            }
+            audioRef.current = new Audio(ALERT_SOUND_PATH);
         }
     }, []);
-
-    const handleSettingsSave = (newMin, newMax, newVolume) => {
-        setHrtThresholds({ min: newMin, max: newMax, volume: newVolume });
-        setIsDangerModalOpen(false);
-    };
 
     const currentHR = heartRateData.length
         ? Math.round(heartRateData[heartRateData.length - 1].y)
@@ -142,164 +172,220 @@ export default function FetalMonitor() {
 
     useEffect(() => {
         const audio = audioRef.current;
-        if (!audio) return;
-
-        const { volume } = hrtThresholds;
-
-        audio.volume = volume / 100;
+        if (!audio || !isSoundEnabled) return;
+        audio.volume = hrtThresholds.volume / 100;
         audio.loop = true;
 
         if (isHRTAlert) {
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-                playPromise.catch((error) => {
-                    console.warn("Autoplay prevented for alarm. User interaction required.", error);
-                });
-            }
+            audio.play().catch(() => {});
         } else {
             audio.pause();
             audio.currentTime = 0;
         }
-
         return () => {
-            if (audio) {
-                audio.pause();
-                audio.currentTime = 0;
-            }
+            audio.pause();
+            audio.currentTime = 0;
         };
     }, [isHRTAlert, hrtThresholds.volume]);
 
     useEffect(() => {
-        if (!param?.patientId || !param?.id) return;
+        setViewStart(Math.max(0, latestTime - viewDuration));
+    }, [latestTime]);
 
-        const wsUrl = `wss://hack.nearby-project.ru/v1/patients/${param.patientId}/examinations/${param.id}/emulation/attach`;
-        let ws;
-
-        try {
-            ws = new WebSocket(wsUrl);
-            socketRef.current = ws;
-        } catch (e) {
-            console.error("WebSocket creation failed:", e);
+    useEffect(() => {
+        const patientId = param.patientId;
+        const examId = param.id;
+        if (!patientId || !examId) {
+            console.error("Missing patientId or examId in parameters, cannot connect to WebSocket.");
             return;
         }
 
-        ws.onopen = () => {
-            console.log("WS connected:", wsUrl);
-        };
+        setPatientId(patientId);
 
+        const wsUrl = `wss://hack.nearby-project.ru/v1/patients/${patientId}/examinations/${examId}/emulation/attach`;
+
+        console.log("Attempting WebSocket connection to:", wsUrl);
+
+        const ws = new WebSocket(wsUrl);
+        socketRef.current = ws;
+
+        ws.onopen = () => console.log("WS connected:", wsUrl);
         ws.onmessage = (event) => {
             const msg = safeParseJSON(event.data);
             if (!msg) return;
+            if (isNext) {
+                setIsNext(false);
+            };
+            if (msg.state && isInitialLoadRef.current) {
+                console.log("Processing initial state message (bulk data).");
+                const { sent_part_data, sent_intervals, sent_predictions, last_stats } = msg.state;
 
-            // === Исторические данные ===
-            if (msg.sent_part_data && !historyLoaded) {
-                let maxHistoryTime = 0;
+                let lastTime = latestTime;
 
-                if (Array.isArray(msg.sent_part_data.bpm)) {
-                    const mapped = msg.sent_part_data.bpm.map(([t, v]) => ({ x: Number(t), y: Number(v) }));
-                    setHeartRateData(mapped);
-                    if (mapped.length) {
-                        maxHistoryTime = Math.max(maxHistoryTime, mapped[mapped.length - 1].x);
+                if (sent_part_data) {
+                    const newHeartRateData = sent_part_data.bpm.map(([x, y]) => ({ x: Number(x), y: Number(y) }));
+                    const newToneData = sent_part_data.uterus.map(([x, y]) => ({ x: Number(x), y: Number(y) }));
+
+                    setHeartRateData(newHeartRateData);
+                    setToneData(newToneData);
+
+                    // Determine the max time for initial latestTime and viewStart calculation
+                    if (newHeartRateData.length > 0) {
+                        lastTime = Math.max(lastTime, newHeartRateData[newHeartRateData.length - 1].x);
+                    }
+                    if (newToneData.length > 0) {
+                        lastTime = Math.max(lastTime, newToneData[newToneData.length - 1].x);
                     }
                 }
 
-                if (Array.isArray(msg.sent_part_data.uterus)) {
-                    const mapped = msg.sent_part_data.uterus.map(([t, v]) => ({ x: Number(t), y: Number(v) }));
-                    setToneData(mapped);
-                    if (mapped.length) {
-                        maxHistoryTime = Math.max(maxHistoryTime, mapped[mapped.length - 1].x);
-                    }
+                if (sent_intervals) {
+                    setIntervals(sent_intervals);
                 }
 
-                if (maxHistoryTime > 0) {
-                    setLatestTime(maxHistoryTime);
+                if (sent_predictions) {
+                    setPrediction(sent_predictions);
                 }
 
-                setHistoryLoaded(true);
-                return; // ⚡ историю приняли, дальше ждём новые данные
+                if (last_stats) {
+                    setAnalysisStats(last_stats);
+                }
+
+                if (lastTime > latestTime) {
+                    setLatestTime(lastTime);
+                }
+
+                isInitialLoadRef.current = false;
+                return;
+            }
+            // -------------------------------------------------------------
+
+
+            if (msg.interval) {
+                console.log("Получено сообщение об интервале:", msg.interval);
+                setIntervals((prev) => {
+                    const newInt = msg.interval;
+                    if (!newInt.start || !newInt.end) return prev;
+                    const exists = prev.some(
+                        (i) => i.start === newInt.start && i.end === newInt.end
+                    );
+                    if (exists) return prev;
+                    return [...prev, newInt];
+                });
+                return;
             }
 
-            // === Новые точки ===
-            if (msg.plot && Array.isArray(msg.plot.point)) {
-                const channel = msg.plot.channel;
-                const point = msg.plot.point;
-                const time = Number(point[0]);
-                const value = Number(point[1]);
+            if (msg.prediction) {
+                console.log(msg.prediction)
+                setPrediction(msg.prediction);
+            }
 
+            if (msg.stats) {
+                setAnalysisStats(msg.stats);
+                return;
+            }
+
+            if (msg.status === "waiting-for-next-command") {
+                setIsNextModalOpen(true);
+                setIsNext(true)
+                return;
+            }
+
+            if (msg.plot && Array.isArray(msg.plot.point)) {
+                const { channel, point } = msg.plot;
+                const [time, value] = point.map(Number);
                 if (!Number.isFinite(time) || !Number.isFinite(value)) return;
 
                 const updateData = (prev) => {
-                    const cutoff = time - bufferSeconds;
+                    // --- 3. MODIFIED CUTOFF LOGIC ---
+                    // Only apply bufferSeconds for points *after* initial load.
+                    const cutoff = isInitialLoadRef.current ? -Infinity : time - bufferSeconds;
+                    // --------------------------------
+
                     const filtered = prev.filter((p) => p.x >= cutoff);
-                    if (filtered.length && filtered[filtered.length - 1].x === time) {
-                        filtered[filtered.length - 1] = { x: time, y: value };
-                        return filtered;
-                    }
                     return [...filtered, { x: time, y: value }];
                 };
 
-                if (channel === "bpm") {
-                    setHeartRateData(updateData);
-                } else if (channel === "uterus") {
-                    setToneData(updateData);
-                }
-
-                setLatestTime((t) => Math.max(t, time));
+                if (channel === "bpm") setHeartRateData(updateData);
+                if (channel === "uterus") setToneData(updateData);
+                setLatestTime(time);
             }
         };
 
-        ws.onclose = (ev) => {
-            console.log("WS closed", ev.code, ev.reason);
-        };
+        ws.onclose = () => console.log("WS closed");
 
-        return () => {
-            try { ws.close(); } catch (e) {}
-            socketRef.current = null;
-        };
-    }, [param?.patientId, param?.id, historyLoaded]);
+        return () => ws.close();
+    }, [param.patientId, param.id]);
 
-    const heartRateChartData = useMemo(() => ({
-        datasets: [
-            {
-                label: "BPM",
-                data: heartRateData,
-                borderColor: "green",
-                backgroundColor: "rgba(0,0,0,0)",
-                pointRadius: 0,
-            },
-        ],
-    }), [heartRateData]);
+    const annotations = makeBoxAnnotations(intervals);
 
-    const toneChartData = useMemo(() => ({
-        datasets: [
-            {
-                label: "Tone",
-                data: toneData,
-                borderColor: "blue",
-                backgroundColor: "rgba(0,0,0,0)",
-                pointRadius: 0,
-            },
-        ],
-    }), [toneData]);
+    const xMin = viewStart;
+    const xMax = viewStart + viewDuration;
 
-    const heartRateOptions = useMemo(() => generateECGOptions(70, 230, latestTime), [latestTime]);
-    const toneOptions = useMemo(() => generateECGOptions(0, 100, latestTime), [latestTime]);
+    const lastInterval = useMemo(() => {
+        if (intervals.length === 0) return null;
+        return intervals[intervals.length - 1];
+    }, [intervals]);
+
+    useEffect(() => {
+        if (lastInterval) {
+            console.log("Последний интервал (для отладки):", lastInterval);
+        }
+    }, [lastInterval]);
+
+    const heartRateChartData = useMemo(
+        () => ({
+            datasets: [
+                {
+                    label: "BPM",
+                    data: heartRateData,
+                    borderColor: "green",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                },
+            ],
+        }),
+        [heartRateData]
+    );
+
+    const toneChartData = useMemo(
+        () => ({
+            datasets: [
+                {
+                    label: "Tone",
+                    data: toneData,
+                    borderColor: "blue",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                },
+            ],
+        }),
+        [toneData]
+    );
+
+    const heartRateOptions = useMemo(
+        () => generateOptions(70, 230, xMin, xMax, annotations),
+        [xMin, xMax, intervals]
+    );
+    const toneOptions = useMemo(
+        () => generateOptions(0, 100, xMin, xMax, annotations),
+        [xMin, xMax, intervals]
+    );
 
     return (
         <>
-            <div className="fm-container">
+            <div style={{color: 'black'}} className="fm-container">
                 <div className="fm-header">
                     <span>MONITORING MODE</span>
-                    <span><Clock /></span>
+                    <span><Clock/></span>
                 </div>
 
                 <div className="fm-main">
                     <div className="fm-graphs">
-                        <div className="fm-graph" style={{ height: 220 }}>
-                            <Line options={heartRateOptions} data={heartRateChartData} />
+                        <div className="fm-graph" style={{height: 220}}>
+                            <Line data={heartRateChartData} options={heartRateOptions}/>
                         </div>
-                        <div className="fm-graph" style={{ height: 220 }}>
-                            <Line options={toneOptions} data={toneChartData} />
+                        <div className="fm-graph" style={{height: 220}}>
+                            <Line data={toneChartData} options={toneOptions}/>
                         </div>
                     </div>
 
@@ -309,22 +395,62 @@ export default function FetalMonitor() {
                             <div className="fm-value-number lime">{currentHR}</div>
                         </div>
                         <div className="fm-value">
-                            <div>US2</div>
-                            <div className="fm-value-number lime">{currentHR}</div>
-                        </div>
-                        <div className="fm-value">
                             <div>UC</div>
                             <div className="fm-value-number red">{currentUC}</div>
+                        </div>
+
+                        <div style={{width: '90%', color: 'black'}} className="fm-analysis-info">
+                            <p style={{fontWeight: 'bolder'}}>Информаиция о последнем подозрительном участке</p>
+                            {intervals.length > 0 ? (
+                                <>
+                                    <div className="fm-analysis-item">
+                                        <div className="fm-analysis-label">Продолжитетельность:</div>
+                                        <div
+                                            className="fm-analysis-value">{Math.round(Math.abs(lastInterval?.end - lastInterval?.start))} сек
+                                        </div>
+                                    </div>
+                                    <div className="fm-analysis-item">
+                                        <div className="fm-analysis-label">Информация</div>
+                                        <div className="fm-analysis-value">{lastInterval?.message}</div>
+                                    </div>
+                                </>
+                            ) : (
+                                <p>Подозрительных моментов не обнаружено</p>
+                            )}
+                        </div>
+
+
+                        <div style={{width: '90%', color: 'black'}} className="fm-analysis-info">
+                            <p style={{fontWeight: 'bolder'}}>Предсказание</p>
+                            {prediction.messages ? (
+                                <>
+                                    {prediction?.messages?.map((msg, index) => (
+                                        <p key={index}>{msg}</p>
+                                    ))}
+                                </>
+                            ) : (
+                                <p>Пока нет информации. Появляется после первой минуты исследования</p>
+                            )}
                         </div>
                     </div>
                 </div>
 
+
                 <footer className="fm-footer">
-                    <button className="fm-button" onClick={() => setIsDangerModalOpen(true)}>
-                        Параметры тревоги
+                    <button style={{padding: '10px', borderRadius: '8px'}}
+                            onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+                    >
+                        {isSoundEnabled ? "Выключить звук тревоги" : "Включить звук тревоги"}
                     </button>
-                    <button className="fm-button" onClick={() => setParamModalOpen(true)}>
-                        Анализ
+
+                    <button style={{padding: '10px', borderRadius: '8px'}}
+                            onClick={() => setIsDangerModalOpen(true)}>Параметры тревоги
+                    </button>
+                    <button style={{padding: '10px', borderRadius: '8px'}} onClick={() => setPatInfo(true)}>Информация о
+                        пациенте
+                    </button>
+                    <button style={{padding: '10px', borderRadius: '8px'}} onClick={() => setParamModalOpen(true)} disabled={!analysisStats}>
+                        Статистический анализ
                     </button>
                 </footer>
             </div>
@@ -332,8 +458,13 @@ export default function FetalMonitor() {
             <ParamModal
                 isOpen={paramModalOpen}
                 onClose={() => setParamModalOpen(false)}
+                analysisStats={analysisStats}
             />
-
+            <MonInfo
+                isOpen={patInfo}
+                onClose={() => setPatInfo(false)}
+                patientId={patientId}
+            />
             <HRTSettingsModal
                 isOpen={isDangerModalOpen}
                 initialMinHRT={hrtThresholds.min}
@@ -341,8 +472,12 @@ export default function FetalMonitor() {
                 initialVolume={hrtThresholds.volume}
                 currentHRT={currentHR}
                 onClose={() => setIsDangerModalOpen(false)}
-                onSave={handleSettingsSave}
+                onSave={(min, max, vol) => setHrtThresholds({ min, max, volume: vol })}
             />
+
+            {isNext && <div style={{ backgroundColor: '#f87171', position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, display: 'flex', textAlign: 'center', padding: '20px', borderRadius: '8px'}}>
+              Данная часть исследования закончилась, чтобы продолжить нажмите продолжить на экране монитора
+            </div>}
         </>
     );
 }

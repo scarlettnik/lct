@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
+
 const useUsers = (url = 'https://hack.nearby-project.ru/v1/patients') => {
     const [users, setUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);

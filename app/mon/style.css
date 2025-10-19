@@ -47,7 +47,9 @@
 .fm-value {
     text-align: center;
 }
-
+.fm-analysis-info {
+    color: black;
+}
 .fm-value-number {
     font-size: 5rem;
 }

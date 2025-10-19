@@ -14,7 +14,9 @@ const FIXED_BGA_PARAMS = [
 
 const formatDataForApi = (data) => {
     return {
-        name: data.name || "Новый пациент",
+        misc_data: {
+            name: data.name,
+        },
         info: {
             parity: data.info?.parity || '',
             pregnancy_course: data.info?.pregnancy_course || '',
@@ -28,7 +30,6 @@ const formatDataForApi = (data) => {
     };
 };
 
-// Принимаем onSuccess
 const EditPatientModal = ({ isOpen, onClose, patientData, successAdd, onSuccess }) => {
     const [formData, setFormData] = useState(null);
     const params = useParams();
@@ -36,13 +37,15 @@ const EditPatientModal = ({ isOpen, onClose, patientData, successAdd, onSuccess 
     useEffect(() => {
         if (!patientData) {
             setFormData({
-                name: '',
+                misc_data: {
+                    name: '',
+                },
                 info: {
                     parity: '',
-                    last_menstrual_period: '',
+                    last_menstrual_period: null,
                     somatic_diseases: '',
                     pregnancy_course: '',
-                    blood_gas: FIXED_BGA_PARAMS.map(p => ({ ...p, name: p.apiName, value: '0' }))
+                    blood_gas: FIXED_BGA_PARAMS.map(p => ({ ...p, name: p.apiName, value: '' }))
                 }
             });
             return;
@@ -57,12 +60,14 @@ const EditPatientModal = ({ isOpen, onClose, patientData, successAdd, onSuccess 
             return {
                 ...fixedItem,
                 name: fixedItem.apiName,
-                value: existingItem?.value || '',
+                value: existingItem?.value !== undefined && existingItem?.value !== null ? String(existingItem.value) : '',
             };
         });
 
         setFormData({
-            name: patientData?.name || '',
+            misc_data: {
+                name: patientData?.name || '',
+            },
             info: {
                 parity: patientData?.info?.parity || '',
                 last_menstrual_period: patientData?.info?.last_menstrual_period || '',
@@ -83,24 +88,45 @@ const EditPatientModal = ({ isOpen, onClose, patientData, successAdd, onSuccess 
             const newBGA = [...formData.info.blood_gas];
             newBGA[index].value = value;
             setFormData({ ...formData, info: { ...formData.info, blood_gas: newBGA } });
+        } else if (name === 'name') {
+            setFormData({ ...formData, name: value });
         } else {
-            setFormData({
-                ...formData,
-                info: { ...formData.info, [name]: value },
-                ...(name === 'name' ? { name: value } : {})
-            });
+            setFormData({ ...formData, info: { ...formData.info, [name]: value } });
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!formData.name.trim()) {
+            alert("Пожалуйста, введите имя пациента.");
+            return;
+        }
+
+        if (!formData.info.parity.trim()) {
+            alert("Пожалуйста, введите паритет родов.");
+            return;
+        }
+
+        console.log(formData)
+
+        if (!formData.info.last_menstrual_period.trim()) {
+            alert("Пожалуйста, выберите дату последней менструации.");
+            return;
+        }
+        // --- КОНЕЦ ЛОГИКИ ВАЛИДАЦИИ ---
+
         const apiData = formatDataForApi(formData);
 
         const isUpdate = !!params?.id;
         const method = isUpdate ? 'PATCH' : 'POST';
+
+        // Рекомендуется использовать переменную среды для BASE_API_URL
+        const BASE_API_URL = 'https://hack.nearby-project.ru/v1';
+
         const url = isUpdate
-            ? `https://hack.nearby-project.ru/v1/patients/${params?.id}`
-            : `https://hack.nearby-project.ru/v1/patients`;
+            ? `${BASE_API_URL}/patients/${params?.id}`
+            : `${BASE_API_URL}/patients`;
 
         try {
             const response = await fetch(url, {
@@ -154,7 +180,7 @@ const EditPatientModal = ({ isOpen, onClose, patientData, successAdd, onSuccess 
                                 width: '150px'
                             }} name="parity"
                                    value={formData?.info?.parity || ''}
-                                   onChange={handleChange}/>
+                                   onChange={handleChange} required/>
                         </div>
 
                         <div style={{display: 'flex', justifyContent: 'space-between', padding: '15px 0'}}>
@@ -167,7 +193,7 @@ const EditPatientModal = ({ isOpen, onClose, patientData, successAdd, onSuccess 
                                 width: '150px'
                             }} type="date" name="last_menstrual_period"
                                    value={formData?.info?.last_menstrual_period || ''}
-                                   onChange={handleChange}/>
+                                   onChange={handleChange} required/> {/* Добавлен атрибут required */}
                         </div>
 
 

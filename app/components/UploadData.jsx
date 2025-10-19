@@ -148,7 +148,6 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <h2 className="modal-title">Загрузите ZIP-файл</h2>
-                <button className="close-button" onClick={onClose}>&times;</button>
                 {message && <p className="message-status">{message}</p>}
 
                 <form onSubmit={handleSubmit}>
@@ -189,9 +188,6 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
                         />
                     </div>
                     <div className="button-group">
-                        <button type="button" onClick={onClose} disabled={isSubmitting} className="btn-cancel">
-                            Отмена
-                        </button>
                         <button type="submit" disabled={isSubmitting || !cleanedPatientId} className="btn-submit">
                             {isSubmitting ? "Отправка..." : "Отправить данные"}
                         </button>
