@@ -175,7 +175,6 @@ export default function FetalMonitor() {
                         console.warn(`Не удалось обновить статус 'unread' для ${patientData.id}: ${response.status}`);
                     }
 
-                    // Обновляем локальное состояние, чтобы избежать повторных запросов
                     setPatientData(prevData => ({
                         ...prevData,
                         misc_data: {
@@ -449,7 +448,7 @@ export default function FetalMonitor() {
     };
 
     console.log(patientData)
-
+    const currentReportData = patientData.last_verdict
     return (
         <div className="fetal-monitor-container" ref={containerRef}>
             <header className="fm-header bento-box bento-header">
@@ -509,32 +508,47 @@ export default function FetalMonitor() {
                 <div className="bento-box fm-result" style={{marginTop: '-16px', marginBottom: '20px'}}>
                     <div style={{padding: '10px', borderRadius: '5px'}}>
 
+                        {/* --- РЕКОМЕНДАЦИИ --- */}
                         <h3 className="fm-subtitle">РЕКОМЕНДАЦИИ:</h3>
-                        <ul style={{listStyleType: 'disc', marginLeft: '20px'}}>
-                            <li>Усилить мониторинг (КТГ каждые 15-30 мин)</li>
-                            <li>Оценить температуру, АД, ЧСС матери</li>
-                            <li>Рассмотреть отмену/снижение окситоцина</li>
-                            <li>Изменить положение тела матери</li>
-                            <li>Контролировать кровопотерю и длительность родов</li>
-                        </ul>
+                        {currentReportData.recommendations && currentReportData.recommendations.length > 0 ? (
+                            <ul style={{listStyleType: 'disc', marginLeft: '20px'}}>
+                                {currentReportData.recommendations.map((item, index) => (
+                                    <li key={`rec-${index}`}>{item}</li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p>Нет актуальных рекомендаций.</p>
+                        )}
+
                         <br/>
-                        <h3 className="fm-subtitle">ЗОНЫ
-                            РИСКА:</h3>
-                        <p>Высокая вероятность поздней децелерации в ближайшие 10 мин (p = 0.56)</p>
+                        {/* --- ЗОНЫ РИСКА --- */}
+                        <h3 className="fm-subtitle">ЗОНЫ РИСКА:</h3>
+                        {currentReportData.risk_zones && currentReportData.risk_zones.length > 0 ? (
+                            <ul style={{listStyleType: 'disc', marginLeft: '20px'}}>
+                                {currentReportData.risk_zones.map((item, index) => (
+                                    // Если это одна большая строка, лучше отобразить как P
+                                    <li key={`risk-${index}`}>{item}</li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p>Зоны риска не выявлены.</p>
+                        )}
+
                         <br/>
-                        <h3 className="fm-subtitle">ЧТО В
-                            НОРМЕ:</h3>
-                        <ul style={{listStyleType: 'disc', marginLeft: '20px'}}>
-                            <li>Базальный ритм в норме (110-160 уд/мин)</li>
-                            <li>Акселерации присутствуют — признак отсутствия гипоксии</li>
-                            <li>Поздние децелерации отсутствуют</li>
-                            <li>Вариабельные децелерации редкие или отсутствуют</li>
-                            <li>Частота сокращений в пределах нормы (3-5 за 10 мин)</li>
-                        </ul>
+                        {/* --- ЧТО В НОРМЕ --- */}
+                        <h3 className="fm-subtitle">ЧТО В НОРМЕ:</h3>
+                        {currentReportData.what_in_norm && currentReportData.what_in_norm.length > 0 ? (
+                            <ul style={{listStyleType: 'disc', marginLeft: '20px'}}>
+                                {currentReportData.what_in_norm.map((item, index) => (
+                                    <li key={`norm-${index}`}>{item}</li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p>Нет информации о параметрах в норме.</p>
+                        )}
 
                     </div>
                 </div>
-
                 <div className='bento-box fm-comment'>
                     <div style={{
                         padding: '10px',
@@ -608,12 +622,7 @@ export default function FetalMonitor() {
                     )}
                 </div>
 
-                <button className='bento-box but fm-install-but'>
-                        Скачать полное исследование
-                </button>
-                <button className='bento-box but fm-install-but2'>
-                        Скачать полное исследование
-                </button>
+
             </main>
         </div>
     );
